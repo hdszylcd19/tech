@@ -1,0 +1,1165 @@
+[TOC]
+
+### 前言
+
+------
+
+​	在西方哲学中有三个终极命题：“我是谁？”，“我从哪里来？”，“我要到哪里去？”，这几个问题一直困扰着我们人类，我们人类世世代代也在不断地去探索着这个宇宙起源的真相！今天，我将试着从这样一个角度去探究一下Handler的前世今生！
+
+### Handler是什么？
+
+------
+
+​	对于我们个人来说，在不同的情况下会有很多重身份。在父母身边时，你更多地要做好子女的角色；在家庭生活当中，你要具备作为丈夫（妻子）应有的担当；在子女成长过程之中，你要履行好为人父母的职责；在日常工作中，你要尽到一个员工应有的职业道德等等......，在不同时刻、不同地点，我们所扮演的角色也不尽相同。
+
+​	Handler单从字面上来理解的话，可以解释为“处理者”或者“处理器”的意思；那么它在Android应用程序当中是处理什么的呢？是一个什么样的角色呢？下面是我从源码中摘录出的Google官方对于Handler的解释：
+
+```
+/**
+ * A Handler allows you to send and process {@link Message} and Runnable
+ * objects associated with a thread's {@link MessageQueue}.Each Handler
+ * instance is associated with a single thread and that thread's message
+ * queue.  When you create a new Handler, it is bound to the thread /
+ * message queue of the thread that is creating it -- from that point on,
+ * it will deliver messages and runnables to that message queue and execute
+ * them as they come out of the message queue.  
+ *
+ * <p>There are two main uses for a Handler: (1) to schedule messages and
+ * runnables to be executed as some point in the future; and (2) to enqueue
+ * an action to be performed on a different thread than your own.
+ ...
+ */
+```
+
+​	我用尽洪荒之力试着翻译一下：
+
+```
+/**
+ * Handler允许你发送和处理与线程关联的Runnable对象。每个Handler实例都与单个线程和该线程的  
+ * 消息队列相关联。当您创建一个新的Handler时，它将和正在创建它的线程/消息队列所绑定，
+ * 此后，它将消息和runnables消息传递到该消息队列，并在取出消息时执行它们。
+ *
+ * Handler主要有两个用途：
+ *（1）安排执行消息和在将来某个时间点执行runnable任务；
+ *（2）在不同的线程中执行一个插入消息队列的操作。
+ ...
+ */
+```
+
+​	通过阅读Google官方文档对于Handler的注释我们大概知道：
+
+​	**1.Handler在创建之时，会和当前线程（Thread），还有消息队列（MessageQueue）所绑定；**
+
+​	**2.可以在不同线程之间发送和处理Message消息、runnable任务*（当使用Handler发送runnable时，其实底层还是通过发送Message消息来实现的，只不过runnable被封装在了Message对象的callback字段中了）*。**
+
+​	**3.从而实现Android应用程序中所谓的线程间通信，这样就可以通过消息来驱动应用程序的执行。**
+
+### Handler从哪里来？
+
+------
+
+​	那么问题来了，Handler当时是怎么来的呢？
+
+​	假设把时针拨回到十二年以前，我们再也不是一个![落魄的Android开发](../image/落魄的Android开发.jpg)了，而是一名Google的高级研发工程师，负责整个Android系统的架构设计！在设计到Android应用程序框架之时，碰到了一些困惑：
+
+#### 1.在应用程序中，是否可以把所有的事情都放在一个线程（也就是主线程）来做呢？
+
+​	答案当然是可以啦，毕竟你是developer你说了算！但是这样做的后果就是：整个Android世界都变成了幻灯片，性能再强悍的硬件都没有用，毕竟同一时间我只能干一件事儿！在我下载《欢乐喜剧人》时候，你什么都做不了，就得乖乖地给我等着......！显然这是完全不能接收的，效率太低下啦，仿佛又回到了上世纪六七十年代！这种事情是绝对不允许发生！我们要想办法解决它！对，没错！就采用多线程的方式！
+
+#### 2.采用多线程方式之后，是否允许在任意一个线程之中更新UI界面呢？
+
+​	我们假设在Android应用程序之中，任意一个线程都可以更新UI界面。当线程A刚刚把一个美屡漂亮的大眼睛给渲染出来，接下来正准备要画她那春寒料峭、弯弯如月的柳叶眉；这时被线程B抢到了cpu的时间片，线程A非常无奈，但也不得不放弃当前渲染了一半的大美屡，让给线程B来执行，毕竟什么事都得听操作系统大哥的；线程B是带着任务来的，根本没有一点怜香惜玉之情，完全不顾大美屡那苦苦哀求的目光，居然把梅球王那性感浓密的大胡子给画在了大眼睛的上面......各个线程之间你争我夺，各不相让，搞得用户的界面各种张冠李戴、混乱不堪，根本没有办法正常显示！
+
+​	世界因秩序而产生美！在GUI程序的世界中，我们也需要秩序来维持界面的正常展示！在Android系统中，只能在一个线程中更新UI界面，也就是主线程；任何更新UI的操作，都必须要放在主线程来做，如若不然我就向你抛出一个异常！![对方不想和你说话](../image/对方不想和你说话.jpg)
+
+​	在Android系统中，应用程序是由Launcher启动起来的，其实，Launcher本身也是一个应用程序，其它的应用程序安装后，就会Launcher的界面上出现一个相应的图标，点击这个图标时，Launcher就会把对应的应用程序启动起来。应用程序是通过消息来驱动的，系统为每一个应用程序维护了一个消息队例，应用程序的主线程不断地从这个消息队例中获取消息（Looper），然后对这些消息进行处理（Handler），这样就实现了通过消息来驱动应用程序的执行。
+
+​	**当ActivityManagerService需要与应用程序进行并互时，如加载Activity和Service、处理广播待，会通过[Binder进程间通信机制](http://blog.csdn.net/luoshengyang/article/details/6618363)来知会应用程序，应用程序接收到这个请求时，它不是马上就处理这个请求，而是将这个请求封装成一个消息，然后把这个消息放在应用程序的消息队列中去，然后再通过消息循环来处理这个消息。这样做的好处就是消息的发送方只要把消息发送到应用程序的消息队列中去就行了，它可以马上返回去处理别的事情，而不需要等待消息的接收方去处理完这个消息才返回，这样就可以提高系统的并发性。实质上，这就是一种异步处理机制。**
+
+​	这样说可能还是比较笼统，我们以[Android应用程序启动过程源代码分析](http://blog.csdn.net/luoshengyang/article/details/6689748)一文中所介绍的应用程序启动过程的一个片断来具体看看这种消息机制是如何处理的。在这篇文章中，要启动的应用程序称为Activity，它的默认Activity是MainActivity，它是由[Launcher](http://blog.csdn.net/luoshengyang/article/details/6767736)来负责启动的，而Launcher又是通过ActivityManagerService来启动的，当ActivityManagerService为这个即将要启的应用程序准备好新的进程后，便通过一个[Binder进程间通信过程](http://blog.csdn.net/luoshengyang/article/details/6618363)来通知这个新的进程来加载MainActivity，如下图所示：
+
+![img](http://hi.csdn.net/attachment/201109/25/0_13169281559alz.gif)
+
+ 	它对应Android应用程序启动过程中的Step 30到Step 35，有兴趣的可以回过头去参考[Android应用程序启动过程源代码分析](http://blog.csdn.net/luoshengyang/article/details/6689748)一文。这里的Step 30中的scheduleLaunchActivity是ActivityManagerService通过[Binder进程间通信机制](http://blog.csdn.net/luoshengyang/article/details/6618363)发送过来的请求，它请求应用程序中的ActivityThread执行Step 34中的performLaunchActivity操作，即启动MainActivity的操作。这里我们就可以看到，Step 30的这个请求并没有等待Step 34这个操作完成就返回了，它只是把这个请求封装成一个消息，然后通过Step 31中的queueOrSendMessage操作把这个消息放到应用程序的消息队列中，然后就返回了。应用程序发现消息队列中有消息时，就会通过Step 32中的handleMessage操作来处理这个消息，即调用Step 33中的handleLaunchActivity来执行实际的加载MainAcitivy类的操作。
+
+### Handler要到哪里去？
+
+------
+
+​	所谓Handler要到哪去，我认为就是要分析它在Android应用程序框架中的价值体现。
+
+​	了解Android应用程序的消息处理过程之后，接下来我们就要开始分析它具体的实现细节了。与Windows应用程序的消息处理过程一样，Android应用程序的消息处理机制也是由消息循环、消息发送和消息处理这三个部分组成的，接下来，我们就详细描述这三个过程。
+
+#### 1.消息循环
+
+​        **在消息处理机制中，消息都是存放在一个消息队列中去，而应用程序的主线程就是围绕这个消息队列进入一个无限循环的，直到应用程序退出。**如果队列中有消息，应用程序的主线程就会把它取出来，并分发给相应的Handler进行处理；如果队列中没有消息，应用程序的主线程就会进入空闲等待状态，等待下一个消息的到来。在Android应用程序中，这个消息循环过程是由Looper类来实现的，它定义在frameworks/base/core/java/android/os/Looper.java文件中，在分析这个类之前，我们先看一下Android应用程序主线程是如何进入到这个消息循环中去的。
+
+​        在[Android应用程序进程启动过程的源代码分析](http://blog.csdn.net/luoshengyang/article/details/6747696)一文中，我们分析了Android应用程序进程的启动过程，Android应用程序进程在启动的时候，会在进程中加载ActivityThread类，并且执行这个类的main函数，应用程序的消息循环过程就是在这个main函数里面实现的，我们来看看这个函数的实现，它定义在frameworks/base/core/java/android/app/ActivityThread.java文件中：
+
+```
+public final class ActivityThread {  
+    ......  
+   
+     public static final void main(String[] args) { 
+         ......  
+        Looper.prepareMainLooper();  
+         ......  
+         ActivityThread thread = new ActivityThread();  
+         thread.attach(false);  
+         ......  
+         Looper.loop();
+         
+         if (Process.supportsProcesses()) {
+            throw new RuntimeException("Main thread loop unexpectedly exited");
+         }
+         
+         thread.detach();  
+         ......  
+     }  
+ }  
+```
+
+​        这个函数做了两件事情，一是在主线程中创建了一个ActivityThread实例，二是通过Looper类使主线程进入消息循环中，这里我们只关注后者。
+
+​        首先看Looper.prepareMainLooper函数的实现，这是一个静态成员函数，定义在frameworks/base/core/java/android/os/Looper.java文件中：
+
+```
+public class Looper {
+	......
+
+	private static final ThreadLocal sThreadLocal = new ThreadLocal();
+
+	final MessageQueue mQueue;
+
+	......
+
+	/** Initialize the current thread as a looper.
+	* This gives you a chance to create handlers that then reference
+	* this looper, before actually starting the loop. Be sure to call
+	* {@link #loop()} after calling this method, and end it by calling
+	* {@link #quit()}.
+	*/
+	public static final void prepare() {
+		if (sThreadLocal.get() != null) {
+			throw new RuntimeException("Only one Looper may be created per thread");
+		}
+		sThreadLocal.set(new Looper());
+	}
+
+	/** Initialize the current thread as a looper, marking it as an application's main 
+	*  looper. The main looper for your application is created by the Android environment,
+	*  so you should never need to call this function yourself.
+	* {@link #prepare()}
+	*/
+
+	public static final void prepareMainLooper() {
+		prepare();
+		setMainLooper(myLooper());
+		if (Process.supportsProcesses()) {
+			myLooper().mQueue.mQuitAllowed = false;
+		}
+	}
+
+	private synchronized static void setMainLooper(Looper looper) {
+		mMainLooper = looper;
+	}
+
+	/**
+	* Return the Looper object associated with the current thread.  Returns
+	* null if the calling thread is not associated with a Looper.
+	*/
+	public static final Looper myLooper() {
+		return (Looper)sThreadLocal.get();
+	}
+
+	private Looper() {
+		mQueue = new MessageQueue();
+		mRun = true;
+		mThread = Thread.currentThread();
+	}
+
+	......
+}
+```
+
+​        函数prepareMainLooper做的事情其实就是在线程中创建一个Looper对象，这个Looper对象是存放在sThreadLocal成员变量里面的，成员变量sThreadLocal的类型为ThreadLocal，表示这是一个线程局部变量，即保证每一个调用了prepareMainLooper函数的线程里面都有一个独立的Looper对象。在线程中创建Looper对象的工作是由prepare函数来完成的，而在创建Looper对象的时候，会同时创建一个消息队列MessageQueue，保存在Looper的成员变量mQueue中，后续消息就是存放在这个队列中去。消息队列在Android应用程序消息处理机制中最重要的组件，因此，我们看看它的创建过程，即它的构造函数的实现，实现frameworks/base/core/java/android/os/MessageQueue.java文件中：
+
+```
+public class MessageQueue {
+	......
+
+	private int mPtr; // used by native code
+
+	private native void nativeInit();
+
+	MessageQueue() {
+		nativeInit();
+	}
+
+	......
+}
+```
+
+​        它的初始化工作都交给JNI方法nativeInit来实现了，这个JNI方法定义在frameworks/base/core/jni/android_os_MessageQueue.cpp文件中：
+
+```
+static void android_os_MessageQueue_nativeInit(JNIEnv* env, jobject obj) {
+    NativeMessageQueue* nativeMessageQueue = new NativeMessageQueue();
+    if (! nativeMessageQueue) {
+        jniThrowRuntimeException(env, "Unable to allocate native queue");
+        return;
+    }
+
+    android_os_MessageQueue_setNativeMessageQueue(env, obj, nativeMessageQueue);
+}
+```
+
+​        在JNI中，也相应地创建了一个消息队列NativeMessageQueue，NativeMessageQueue类也是定义在frameworks/base/core/jni/android_os_MessageQueue.cpp文件中，它的创建过程如下所示：
+
+```
+NativeMessageQueue::NativeMessageQueue() {
+    mLooper = Looper::getForThread();
+    if (mLooper == NULL) {
+        mLooper = new Looper(false);
+        Looper::setForThread(mLooper);
+    }
+}
+```
+
+​        它主要就是在内部创建了一个Looper对象，注意，这个Looper对象是实现在JNI层的，它与上面Java层中的Looper是不一样的，不过它们是对应的，下面我们进一步分析消息循环的过程的时候，就会清楚地了解到它们之间的关系。
+
+​        这个Looper的创建过程也很重要，不过我们暂时放一放，先分析完android_os_MessageQueue_nativeInit函数的执行，它创建了本地消息队列NativeMessageQueue对象之后，接着调用android_os_MessageQueue_setNativeMessageQueue函数来把这个消息队列对象保存在前面我们在Java层中创建的MessageQueue对象的mPtr成员变量里面：
+
+```
+static void android_os_MessageQueue_setNativeMessageQueue(JNIEnv* env, jobject messageQueueObj,
+        NativeMessageQueue* nativeMessageQueue) {
+    env->SetIntField(messageQueueObj, gMessageQueueClassInfo.mPtr,
+             reinterpret_cast<jint>(nativeMessageQueue));
+}
+```
+
+​        这里传进来的参数messageQueueObj即为我们前面在Java层创建的消息队列对象，而gMessageQueueClassInfo.mPtr即表示在Java类MessageQueue中，其成员变量mPtr的偏移量，通过这个偏移量，就可以把这个本地消息队列对象natvieMessageQueue保存在Java层创建的消息队列对象的mPtr成员变量中，这是为了后续我们调用Java层的消息队列对象的其它成员函数进入到JNI层时，能够方便地找回它在JNI层所对应的消息队列对象。
+
+​        我们再回到NativeMessageQueue的构造函数中，看看JNI层的Looper对象的创建过程，即看看它的构造函数是如何实现的，这个Looper类实现在frameworks/base/libs/utils/Looper.cpp文件中：
+
+```
+Looper::Looper(bool allowNonCallbacks) :
+	mAllowNonCallbacks(allowNonCallbacks),
+	mResponseIndex(0) {
+	int wakeFds[2];
+	int result = pipe(wakeFds);
+	......
+
+	mWakeReadPipeFd = wakeFds[0];
+	mWakeWritePipeFd = wakeFds[1];
+
+	......
+
+#ifdef LOOPER_USES_EPOLL
+	// Allocate the epoll instance and register the wake pipe.
+	mEpollFd = epoll_create(EPOLL_SIZE_HINT);
+	......
+
+	struct epoll_event eventItem;
+	memset(& eventItem, 0, sizeof(epoll_event)); // zero out unused members of data field union
+	eventItem.events = EPOLLIN;
+	eventItem.data.fd = mWakeReadPipeFd;
+	result = epoll_ctl(mEpollFd, EPOLL_CTL_ADD, mWakeReadPipeFd, & eventItem);
+	......
+#else
+	......
+#endif
+
+	......
+}
+```
+
+​        这个构造函数做的事情非常重要，它跟我们后面要介绍的应用程序主线程在消息队列中没有消息时要进入等待状态以及当消息队列有消息时要把应用程序主线程唤醒的这两个知识点息息相关。它主要就是通过pipe系统调用来创建了一个管道了：
+
+```
+int wakeFds[2];
+int result = pipe(wakeFds);
+......
+
+mWakeReadPipeFd = wakeFds[0];
+mWakeWritePipeFd = wakeFds[1];
+```
+
+​        管道是Linux系统中的一种进程间通信机制，具体可以参考前面一篇文章[Android学习启动篇](http://blog.csdn.net/luoshengyang/article/details/6557518)推荐的一本书《Linux内核源代码情景分析》中的第6章--传统的Unix进程间通信。简单来说，管道就是一个文件，在管道的两端，分别是两个打开文件文件描述符，这两个打开文件描述符都是对应同一个文件，其中一个是用来读的，别一个是用来写的，一般的使用方式就是，一个线程通过读文件描述符中来读管道的内容，当管道没有内容时，这个线程就会进入等待状态，而另外一个线程通过写文件描述符来向管道中写入内容，写入内容的时候，如果另一端正有线程正在等待管道中的内容，那么这个线程就会被唤醒。这个等待和唤醒的操作是如何进行的呢，这就要借助Linux系统中的epoll机制了。 Linux系统中的epoll机制为处理大批量句柄而作了改进的poll，是Linux下多路复用IO接口select/poll的增强版本，它能显著减少程序在大量并发连接中只有少量活跃的情况下的系统CPU利用率。但是这里我们其实只需要监控的IO接口只有mWakeReadPipeFd一个，即前面我们所创建的管道的读端，为什么还需要用到epoll呢？有点用牛刀来杀鸡的味道。其实不然，这个Looper类是非常强大的，它除了监控内部所创建的管道接口之外，还提供了addFd接口供外界面调用，外界可以通过这个接口把自己想要监控的IO事件一并加入到这个Looper对象中去，当所有这些被监控的IO接口上面有事件发生时，就会唤醒相应的线程来处理，不过这里我们只关心刚才所创建的管道的IO事件的发生。
+
+​        要使用Linux系统的epoll机制，首先要通过epoll_create来创建一个epoll专用的文件描述符：
+
+```
+mEpollFd = epoll_create(EPOLL_SIZE_HINT);  
+```
+
+​       传入的参数EPOLL_SIZE_HINT是在这个mEpollFd上能监控的最大文件描述符数。
+
+​       接着还要通过epoll_ctl函数来告诉epoll要监控相应的文件描述符的什么事件：
+
+```
+struct epoll_event eventItem;
+memset(& eventItem, 0, sizeof(epoll_event)); // zero out unused members of data field union
+eventItem.events = EPOLLIN;
+eventItem.data.fd = mWakeReadPipeFd;
+result = epoll_ctl(mEpollFd, EPOLL_CTL_ADD, mWakeReadPipeFd, & eventItem);
+```
+
+​       这里就是告诉mEpollFd，它要监控mWakeReadPipeFd文件描述符的EPOLLIN事件，即当管道中有内容可读时，就唤醒当前正在等待管道中的内容的线程。
+
+​       C++层的这个Looper对象创建好了之后，就返回到JNI层的NativeMessageQueue的构造函数，最后就返回到Java层的消息队列MessageQueue的创建过程，这样，Java层的Looper对象就准备好了。有点复杂，我们先小结一下这一步都做了些什么事情：
+
+​       **A. 在Java层，创建了一个Looper对象，这个Looper对象是用来进入消息循环的，它的内部有一个消息队列MessageQueue对象mQueue；**
+
+​**       B. 在JNI层，创建了一个NativeMessageQueue对象，这个NativeMessageQueue对象保存在Java层的消息队列对象mQueue的成员变量mPtr中；**
+
+​**       C. 在C++层，创建了一个Looper对象，保存在JNI层的NativeMessageQueue对象的成员变量mLooper中，这个对象的作用是，当Java层的消息队列中没有消息时，就使Android应用程序主线程进入等待状态，而当Java层的消息队列中来了新的消息后，就唤醒Android应用程序的主线程来处理这个消息。**
+
+​       回到ActivityThread类的main函数中，在上面这些工作都准备好之后，就调用Looper类的loop函数进入到消息循环中去了：
+
+```
+public class Looper {
+	......
+
+	public static final void loop() {
+		Looper me = myLooper();
+		MessageQueue queue = me.mQueue;
+
+		......
+
+		while (true) {
+			Message msg = queue.next(); // might block
+			......
+
+			if (msg != null) {
+				if (msg.target == null) {
+					// No target is a magic identifier for the quit message.
+					return;
+				}
+
+				......
+
+				msg.target.dispatchMessage(msg);
+				
+				......
+
+				msg.recycle();
+			}
+		}
+	}
+
+	......
+}
+```
+
+​        这里就是进入到消息循环中去了，它不断地从消息队列mQueue中去获取下一个要处理的消息msg，如果消息的target成员变量为null，就表示要退出消息循环了，否则的话就要调用这个target对象的dispatchMessage成员函数来处理这个消息，这个target对象的类型为Handler，下面我们分析消息的发送时会看到这个消息对象msg是如设置的。
+
+​        这个函数最关键的地方便是从消息队列中获取下一个要处理的消息了，即MessageQueue.next函数，它实现frameworks/base/core/java/android/os/MessageQueue.java文件中：
+
+```
+public class MessageQueue {
+	......
+
+	final Message next() {
+		int pendingIdleHandlerCount = -1; // -1 only during first iteration
+		int nextPollTimeoutMillis = 0;
+
+		for (;;) {
+			if (nextPollTimeoutMillis != 0) {
+				Binder.flushPendingCommands();
+			}
+			nativePollOnce(mPtr, nextPollTimeoutMillis);
+
+			synchronized (this) {
+				// Try to retrieve the next message.  Return if found.
+				final long now = SystemClock.uptimeMillis();
+				final Message msg = mMessages;
+				if (msg != null) {
+					final long when = msg.when;
+					if (now >= when) {
+						mBlocked = false;
+						mMessages = msg.next;
+						msg.next = null;
+						if (Config.LOGV) Log.v("MessageQueue", "Returning message: " + msg);
+						return msg;
+					} else {
+						nextPollTimeoutMillis = (int) Math.min(when - now, Integer.MAX_VALUE);
+					}
+				} else {
+					nextPollTimeoutMillis = -1;
+				}
+
+				// If first time, then get the number of idlers to run.
+				if (pendingIdleHandlerCount < 0) {
+					pendingIdleHandlerCount = mIdleHandlers.size();
+				}
+				if (pendingIdleHandlerCount == 0) {
+					// No idle handlers to run.  Loop and wait some more.
+					mBlocked = true;
+					continue;
+				}
+
+				if (mPendingIdleHandlers == null) {
+					mPendingIdleHandlers = new IdleHandler[Math.max(pendingIdleHandlerCount, 4)];
+				}
+				mPendingIdleHandlers = mIdleHandlers.toArray(mPendingIdleHandlers);
+			}
+
+			// Run the idle handlers.
+			// We only ever reach this code block during the first iteration.
+			for (int i = 0; i < pendingIdleHandlerCount; i++) {
+				final IdleHandler idler = mPendingIdleHandlers[i];
+				mPendingIdleHandlers[i] = null; // release the reference to the handler
+
+				boolean keep = false;
+				try {
+					keep = idler.queueIdle();
+				} catch (Throwable t) {
+					Log.wtf("MessageQueue", "IdleHandler threw exception", t);
+				}
+
+				if (!keep) {
+					synchronized (this) {
+						mIdleHandlers.remove(idler);
+					}
+				}
+			}
+
+			// Reset the idle handler count to 0 so we do not run them again.
+			pendingIdleHandlerCount = 0;
+
+			// While calling an idle handler, a new message could have been delivered
+			// so go back and look again for a pending message without waiting.
+			nextPollTimeoutMillis = 0;
+		}
+	}
+
+	......
+}
+```
+
+​        调用这个函数的时候，有可能会让线程进入等待状态。什么情况下，线程会进入等待状态呢？两种情况，一是当消息队列中没有消息时，它会使线程进入等待状态；二是消息队列中有消息，但是消息指定了执行的时间，而现在还没有到这个时间，线程也会进入等待状态。消息队列中的消息是按时间先后来排序的，后面我们在分析消息的发送时会看到。
+
+​        执行下面语句是看看当前消息队列中有没有消息：
+
+```
+nativePollOnce(mPtr, nextPollTimeoutMillis);  
+```
+
+​        这是一个JNI方法，我们等一下再分析，这里传入的参数mPtr就是指向前面我们在JNI层创建的NativeMessageQueue对象了，而参数nextPollTimeoutMillis则表示如果当前消息队列中没有消息，它要等待的时候，for循环开始时，传入的值为0，表示不等待。
+
+​        当前nativePollOnce返回后，就去看看消息队列中有没有消息：
+
+```
+final Message msg = mMessages;
+if (msg != null) {
+	final long when = msg.when;
+	if (now >= when) {
+		mBlocked = false;
+		mMessages = msg.next;
+		msg.next = null;
+		if (Config.LOGV) Log.v("MessageQueue", "Returning message: " + msg);
+		return msg;
+	} else {
+		nextPollTimeoutMillis = (int) Math.min(when - now, Integer.MAX_VALUE);
+	}
+} else {
+	nextPollTimeoutMillis = -1;
+}
+```
+
+​        如果消息队列中有消息，并且当前时候大于等于消息中的执行时间，那么就直接返回这个消息给Looper.loop消息处理，否则的话就要等待到消息的执行时间：
+
+```
+nextPollTimeoutMillis = (int) Math.min(when - now, Integer.MAX_VALUE);  
+```
+
+​        如果消息队列中没有消息，那就要进入无穷等待状态直到有新消息了：
+
+```
+nextPollTimeoutMillis = -1;  
+```
+
+​        -1表示下次调用nativePollOnce时，如果消息中没有消息，就进入无限等待状态中去。
+
+​        这里计算出来的等待时间都是在下次调用nativePollOnce时使用的。
+
+​        这里说的等待，是空闲等待，而不是忙等待，因此，在进入空闲等待状态前，如果应用程序注册了IdleHandler接口来处理一些事情，那么就会先执行这里IdleHandler，然后再进入等待状态。IdlerHandler是定义在MessageQueue的一个内部类：
+
+```
+public class MessageQueue {
+	......
+
+	/**
+	* Callback interface for discovering when a thread is going to block
+	* waiting for more messages.
+	*/
+	public static interface IdleHandler {
+		/**
+		* Called when the message queue has run out of messages and will now
+		* wait for more.  Return true to keep your idle handler active, false
+		* to have it removed.  This may be called if there are still messages
+		* pending in the queue, but they are all scheduled to be dispatched
+		* after the current time.
+		*/
+		boolean queueIdle();
+	}
+
+	......
+}
+```
+
+ 	它只有一个成员函数queueIdle，执行这个函数时，如果返回值为false，那么就会从应用程序中移除这个IdleHandler，否则的话就会在应用程序中继续维护着这个IdleHandler，下次空闲时仍会再执会这个IdleHandler。MessageQueue提供了addIdleHandler和removeIdleHandler两注册和删除IdleHandler。
+
+​        回到MessageQueue函数中，它接下来就是在进入等待状态前，看看有没有IdleHandler是需要执行的：
+
+```
+// If first time, then get the number of idlers to run.
+if (pendingIdleHandlerCount < 0) {
+	pendingIdleHandlerCount = mIdleHandlers.size();
+}
+if (pendingIdleHandlerCount == 0) {
+	// No idle handlers to run.  Loop and wait some more.
+	mBlocked = true;
+	continue;
+}
+
+if (mPendingIdleHandlers == null) {
+	mPendingIdleHandlers = new IdleHandler[Math.max(pendingIdleHandlerCount, 4)];
+}
+mPendingIdleHandlers = mIdleHandlers.toArray(mPendingIdleHandlers);
+```
+
+​        如果没有，即pendingIdleHandlerCount等于0，那下面的逻辑就不执行了，通过continue语句直接进入下一次循环，否则就要把注册在mIdleHandlers中的IdleHandler取出来，放在mPendingIdleHandlers数组中去。
+
+​        接下来就是执行这些注册了的IdleHanlder了：
+
+```
+// Run the idle handlers.
+// We only ever reach this code block during the first iteration.
+for (int i = 0; i < pendingIdleHandlerCount; i++) {
+      final IdleHandler idler = mPendingIdleHandlers[i];
+      mPendingIdleHandlers[i] = null; // release the reference to the handler
+
+      boolean keep = false;
+      try {
+            keep = idler.queueIdle();
+      } catch (Throwable t) {
+            Log.wtf("MessageQueue", "IdleHandler threw exception", t);
+      }
+
+      if (!keep) {
+            synchronized (this) {
+                    mIdleHandlers.remove(idler);
+            }
+      }
+}
+```
+
+​         执行完这些IdleHandler之后，线程下次调用nativePollOnce函数时，就不设置超时时间了，因为，很有可能在执行IdleHandler的时候，已经有新的消息加入到消息队列中去了，因此，要重置nextPollTimeoutMillis的值：
+
+```
+// While calling an idle handler, a new message could have been delivered
+// so go back and look again for a pending message without waiting.
+nextPollTimeoutMillis = 0;
+```
+
+​        分析完MessageQueue的这个next函数之后，我们就要深入分析一下JNI方法nativePollOnce了，看看它是如何进入等待状态的，这个函数定义在frameworks/base/core/jni/android_os_MessageQueue.cpp文件中：
+
+```
+static void android_os_MessageQueue_nativePollOnce(JNIEnv* env, jobject obj,
+        jint ptr, jint timeoutMillis) {
+    NativeMessageQueue* nativeMessageQueue = reinterpret_cast<NativeMessageQueue*>(ptr);
+    nativeMessageQueue->pollOnce(timeoutMillis);
+}
+```
+
+​        这个函数首先是通过传进入的参数ptr取回前面在Java层创建MessageQueue对象时在JNI层创建的NatvieMessageQueue对象，然后调用它的pollOnce函数：
+
+```
+void NativeMessageQueue::pollOnce(int timeoutMillis) {  
+	mLooper->pollOnce(timeoutMillis);  
+}  
+```
+
+​        这里将操作转发给mLooper对象的pollOnce函数处理，这里的mLooper对象是在C++层的对象，它也是在前面在JNI层创建的NatvieMessageQueue对象时创建的，它的pollOnce函数定义在frameworks/base/libs/utils/Looper.cpp文件中：
+
+```
+int Looper::pollOnce(int timeoutMillis, int* outFd, int* outEvents, void** outData) {
+	int result = 0;
+	for (;;) {
+		......
+		if (result != 0) {
+			......
+			return result;
+		}
+
+		result = pollInner(timeoutMillis);
+	}
+}
+```
+
+​        为了方便讨论，我们把这个函数的无关部分都去掉，它主要就是调用pollInner函数来进一步操作，如果pollInner返回值不等于0，这个函数就可以返回了。
+
+​        函数pollInner的定义如下：
+
+```
+int Looper::pollInner(int timeoutMillis) {
+	......
+	int result = ALOOPER_POLL_WAKE;
+	......
+
+#ifdef LOOPER_USES_EPOLL
+	struct epoll_event eventItems[EPOLL_MAX_EVENTS];
+	int eventCount = epoll_wait(mEpollFd, eventItems, EPOLL_MAX_EVENTS, timeoutMillis);
+	bool acquiredLock = false;
+#else
+	......
+#endif
+
+	if (eventCount < 0) {
+		if (errno == EINTR) {
+			goto Done;
+		}
+
+		LOGW("Poll failed with an unexpected error, errno=%d", errno);
+		result = ALOOPER_POLL_ERROR;
+		goto Done;
+	}
+
+	if (eventCount == 0) {
+		......
+		result = ALOOPER_POLL_TIMEOUT;
+		goto Done;
+	}
+
+	......
+
+#ifdef LOOPER_USES_EPOLL
+	for (int i = 0; i < eventCount; i++) {
+		int fd = eventItems[i].data.fd;
+		uint32_t epollEvents = eventItems[i].events;
+		if (fd == mWakeReadPipeFd) {
+			if (epollEvents & EPOLLIN) {
+				awoken();
+			} else {
+				LOGW("Ignoring unexpected epoll events 0x%x on wake read pipe.", epollEvents);
+			}
+		} else {
+			......
+		}
+	}
+	if (acquiredLock) {
+		mLock.unlock();
+	}
+Done: ;
+#else
+	......
+#endif
+	......
+	return result;
+}
+```
+
+​        这里，首先是调用epoll_wait函数来看看epoll专用文件描述符mEpollFd所监控的文件描述符是否有IO事件发生，它设置监控的超时时间为timeoutMillis：
+
+```
+int eventCount = epoll_wait(mEpollFd, eventItems, EPOLL_MAX_EVENTS, timeoutMillis);  
+```
+
+​        回忆一下前面的Looper的构造函数，我们在里面设置了要监控mWakeReadPipeFd文件描述符的EPOLLIN事件。
+
+​        当mEpollFd所监控的文件描述符发生了要监控的IO事件后或者监控时间超时后，线程就从epoll_wait返回了，否则线程就会在epoll_wait函数中进入睡眠状态了。返回后如果eventCount等于0，就说明是超时了：
+
+```
+if (eventCount == 0) {
+    ......
+    result = ALOOPER_POLL_TIMEOUT;
+    goto Done;
+}
+```
+
+​       如果eventCount不等于0，就说明发生要监控的事件：
+
+```
+for (int i = 0; i < eventCount; i++) {
+	int fd = eventItems[i].data.fd;
+	uint32_t epollEvents = eventItems[i].events;
+	if (fd == mWakeReadPipeFd) {
+		if (epollEvents & EPOLLIN) {
+			awoken();
+		} else {
+			LOGW("Ignoring unexpected epoll events 0x%x on wake read pipe.", epollEvents);
+		}
+	} else {
+			......
+	}
+}
+```
+
+​        这里我们只关注mWakeReadPipeFd文件描述符上的事件，如果在mWakeReadPipeFd文件描述符上发生了EPOLLIN就说明应用程序中的消息队列里面有新的消息需要处理了，接下来它就会先调用awoken函数清空管道中的内容，以便下次再调用pollInner函数时，知道自从上次处理完消息队列中的消息后，有没有新的消息加进来。
+
+​        函数awoken的实现很简单，它只是把管道中的内容都读取出来：
+
+```
+void Looper::awoken() {
+	......
+	char buffer[16];
+	ssize_t nRead;
+	do {
+		nRead = read(mWakeReadPipeFd, buffer, sizeof(buffer));
+	} while ((nRead == -1 && errno == EINTR) || nRead == sizeof(buffer));
+}
+```
+
+​        因为当其它的线程向应用程序的消息队列加入新的消息时，会向这个管道写入新的内容来通知应用程序主线程有新的消息需要处理了，下面我们分析消息的发送的时候将会看到。
+
+​        这样，消息的循环过程就分析完了，这部分逻辑还是比较复杂的，它利用Linux系统中的管道（pipe）进程间通信机制来实现消息的等待和处理，不过，了解了这部分内容之后，下面我们分析消息的发送和处理就简单多了。
+
+#### 2.消息发送
+
+​        应用程序的主线程准备就好消息队列并且进入到消息循环后，其它地方就可以往这个消息队列中发送消息了。我们继续以文章开始介绍的[Android应用程序启动过程源代码分析](http://blog.csdn.net/luoshengyang/article/details/6689748)一文中的应用程序启动过为例，说明应用程序是如何把消息加入到应用程序的消息队列中去的。
+
+​        在[Android应用程序启动过程源代码分析](http://blog.csdn.net/luoshengyang/article/details/6689748)这篇文章的Step 30中，ActivityManagerService通过调用ApplicationThread类的scheduleLaunchActivity函数通知应用程序，它可以加载应用程序的默认Activity了，这个函数定义在frameworks/base/core/java/android/app/ActivityThread.java文件中：
+
+```
+public final class ActivityThread {  
+  
+    ......  
+  
+    private final class ApplicationThread extends ApplicationThreadNative {  
+  
+        ......  
+  
+        // we use token to identify this activity without having to send the  
+        // activity itself back to the activity manager. (matters more with ipc)  
+        public final void scheduleLaunchActivity(Intent intent, IBinder token, int ident,  
+                ActivityInfo info, Bundle state, List<ResultInfo> pendingResults,  
+                List<Intent> pendingNewIntents, boolean notResumed, boolean isForward) {  
+            ActivityClientRecord r = new ActivityClientRecord();  
+  
+            r.token = token;  
+            r.ident = ident;  
+            r.intent = intent;  
+            r.activityInfo = info;  
+            r.state = state;  
+  
+            r.pendingResults = pendingResults;  
+            r.pendingIntents = pendingNewIntents;  
+  
+            r.startsNotResumed = notResumed;  
+            r.isForward = isForward;  
+  
+            queueOrSendMessage(H.LAUNCH_ACTIVITY, r);  
+        }  
+  
+        ......  
+  
+    }  
+  
+    ......  
+}  
+```
+
+​	这里把相关的参数都封装成一个ActivityClientRecord对象r，然后调用queueOrSendMessage函数来往应用程序的消息队列中加入一个新的消息（H.LAUNCH_ACTIVITY），这个函数定义在frameworks/base/core/java/android/app/ActivityThread.java文件中：
+
+```
+public final class ActivityThread {  
+  
+    ......  
+  
+    private final class ApplicationThread extends ApplicationThreadNative {  
+  
+        ......  
+  
+        // if the thread hasn't started yet, we don't have the handler, so just  
+        // save the messages until we're ready.  
+        private final void queueOrSendMessage(int what, Object obj) {  
+            queueOrSendMessage(what, obj, 0, 0);  
+        }  
+  
+        ......  
+  
+        private final void queueOrSendMessage(int what, Object obj, int arg1, int arg2) {  
+            synchronized (this) {  
+                ......  
+                Message msg = Message.obtain();  
+                msg.what = what;  
+                msg.obj = obj;  
+                msg.arg1 = arg1;  
+                msg.arg2 = arg2;  
+                mH.sendMessage(msg);  
+            }  
+        }  
+  
+        ......  
+  
+    }  
+  
+    ......  
+}  
+```
+
+​	 在queueOrSendMessage函数中，又进一步把上面传进来的参数封装成一个Message对象msg，然后通过mH.sendMessage函数把这个消息对象msg加入到应用程序的消息队列中去。这里的mH是ActivityThread类的成员变量，它的类型为H，继承于Handler类，它定义在frameworks/base/core/java/android/app/ActivityThread.java文件中：
+
+```
+public final class ActivityThread {  
+  
+    ......  
+  
+    private final class H extends Handler {  
+  
+        ......  
+  
+        public void handleMessage(Message msg) {  
+            ......  
+            switch (msg.what) {    
+            ......  
+            }  
+  
+        ......  
+  
+    }  
+  
+    ......  
+} 
+```
+
+​	这个H类就是通过其成员函数handleMessage函数来处理消息的了，后面我们分析消息的处理过程时会看到。
+​        ActivityThread类的这个mH成员变量是什么时候创建的呢？我们前面在分析应用程序的消息循环时，说到当应用程序进程启动之后，就会加载ActivityThread类的main函数里面，在这个main函数里面，在通过Looper类进入消息循环之前，会在当前进程中创建一个ActivityThread实例：
+
+```
+public final class ActivityThread {
+	......
+
+	public static final void main(String[] args) {
+		......
+
+		ActivityThread thread = new ActivityThread();
+		thread.attach(false);
+
+		......
+	}
+}
+```
+
+ 	在创建这个实例的时候，就会同时创建其成员变量mH了：
+
+```
+public final class ActivityThread {
+	......
+
+	final H mH = new H();
+
+	......
+} 
+```
+
+​	前面说过，H类继承于Handler类，因此，当创建这个H对象时，会调用Handler类的构造函数，这个函数定义在frameworks/base/core/java/android/os/Handler.java文件中：
+
+```
+public class Handler {
+	......
+
+	public Handler() {
+		......
+
+		mLooper = Looper.myLooper();
+		......
+
+		mQueue = mLooper.mQueue;
+		......
+	}
+
+
+	final MessageQueue mQueue;
+	final Looper mLooper;
+	......
+}
+```
+
+ 	在Hanlder类的构造函数中，主要就是初始成员变量mLooper和mQueue了。这里的myLooper是Looper类的静态成员函数，通过它来获得一个Looper对象，这个Looper对象就是前面我们在分析消息循环时，在ActivityThread类的main函数中通过Looper.prepareMainLooper函数创建的。Looper.myLooper函数实现在frameworks/base/core/java/android/os/Looper.java文件中：
+
+```
+public class Looper {
+	......
+
+	public static final Looper myLooper() {
+		return (Looper)sThreadLocal.get();
+	}
+
+	......
+}
+```
+
+​	有了这个Looper对象后，就可以通过Looper.mQueue来访问应用程序的消息队列了。
+
+​        有了这个Handler对象mH后，就可以通过它来往应用程序的消息队列中加入新的消息了。回到前面的queueOrSendMessage函数中，当它准备好了一个Message对象msg后，就开始调用mH.sendMessage函数来发送消息了，这个函数定义在frameworks/base/core/java/android/os/Handler.java文件中：
+
+```
+public class Handler {
+	......
+
+	public final boolean sendMessage(Message msg)
+	{
+		return sendMessageDelayed(msg, 0);
+	}
+
+	public final boolean sendMessageDelayed(Message msg, long delayMillis)
+	{
+		if (delayMillis < 0) {
+			delayMillis = 0;
+		}
+		return sendMessageAtTime(msg, SystemClock.uptimeMillis() + delayMillis);
+	}
+
+	public boolean sendMessageAtTime(Message msg, long uptimeMillis)
+	{
+		boolean sent = false;
+		MessageQueue queue = mQueue;
+		if (queue != null) {
+			msg.target = this;
+			sent = queue.enqueueMessage(msg, uptimeMillis);
+		}
+		else {
+			......
+		}
+		return sent;
+	}
+
+	......
+}
+```
+
+​	在发送消息时，是可以指定消息的处理时间的，但是通过sendMessage函数发送的消息的处理时间默认就为当前时间，即表示要马上处理，因此，从sendMessage函数中调用sendMessageDelayed函数，传入的时间参数为0，表示这个消息不要延时处理，而在sendMessageDelayed函数中，则会先获得当前时间，然后加上消息要延时处理的时间，即得到这个处理这个消息的绝对时间，然后调用sendMessageAtTime函数来把消息加入到应用程序的消息队列中去。
+
+​        在sendMessageAtTime函数，首先得到应用程序的消息队列mQueue，这是在Handler对象构造时初始化好的，前面已经分析过了，接着设置这个消息的目标对象target，即这个消息最终是由谁来处理的：
+
+```
+msg.target = this;
+```
+
+ 	这里将它赋值为this，即表示这个消息最终由这个Handler对象来处理，即由ActivityThread对象的mH成员变量来处理。
+
+​        函数最后调用queue.enqueueMessage来把这个消息加入到应用程序的消息队列中去，这个函数实现在frameworks/base/core/java/android/os/MessageQueue.java文件中：
+
+```
+public class MessageQueue {
+	......
+
+	final boolean enqueueMessage(Message msg, long when) {
+		......
+
+		final boolean needWake;
+		synchronized (this) {
+			......
+
+			msg.when = when;
+			//Log.d("MessageQueue", "Enqueing: " + msg);
+			Message p = mMessages;
+			if (p == null || when == 0 || when < p.when) {
+				msg.next = p;
+				mMessages = msg;
+				needWake = mBlocked; // new head, might need to wake up
+			} else {
+				Message prev = null;
+				while (p != null && p.when <= when) {
+					prev = p;
+					p = p.next;
+				}
+				msg.next = prev.next;
+				prev.next = msg;
+				needWake = false; // still waiting on head, no need to wake up
+			}
+
+		}
+		if (needWake) {
+			nativeWake(mPtr);
+		}
+		return true;
+	}
+
+	......
+}
+```
+
+ 	把消息加入到消息队列时，分两种情况，一种当前消息队列为空时，这时候应用程序的主线程一般就是处于空闲等待状态了，这时候就要唤醒它，另一种情况是应用程序的消息队列不为空，这时候就不需要唤醒应用程序的主线程了，因为这时候它一定是在忙着处于消息队列中的消息，因此不会处于空闲等待的状态。
+
+​        第一种情况比较简单，只要把消息放在消息队列头就可以了：
+
+```
+msg.next = p;
+mMessages = msg;
+needWake = mBlocked; // new head, might need to wake up
+```
+
+​	第二种情况相对就比较复杂一些了，前面我们说过，当往消息队列中发送消息时，是可以指定消息的处理时间的，而消息队列中的消息，就是按照这个时间从小到大来排序的，因此，当把新的消息加入到消息队列时，就要根据它的处理时间来找到合适的位置，然后再放进消息队列中去：
+
+```
+Message prev = null;
+while (p != null && p.when <= when) {
+	prev = p;
+	p = p.next;
+}
+msg.next = prev.next;
+prev.next = msg;
+needWake = false; // still waiting on head, no need to wake up
+```
+
+​	把消息加入到消息队列去后，如果应用程序的主线程正处于空闲等待状态，就需要调用natvieWake函数来唤醒它了，这是一个JNI方法，定义在frameworks/base/core/jni/android_os_MessageQueue.cpp文件中：
+
+```
+static void android_os_MessageQueue_nativeWake(JNIEnv* env, jobject obj, jint ptr) {
+    NativeMessageQueue* nativeMessageQueue = reinterpret_cast<NativeMessageQueue*>(ptr);
+    return nativeMessageQueue->wake();
+}
+```
+
+​	这个JNI层的NativeMessageQueue对象我们在前面分析消息循环的时候创建好的，保存在Java层的MessageQueue对象的mPtr成员变量中，这里把它取回来之后，就调用它的wake函数来唤醒应用程序的主线程，这个函数也是定义在frameworks/base/core/jni/android_os_MessageQueue.cpp文件中：
+
+```
+void NativeMessageQueue::wake() {
+    mLooper->wake();
+}
+```
+
+​	这里它又通过成员变量mLooper的wake函数来执行操作，这里的mLooper成员变量是一个C++层实现的Looper对象，它定义在frameworks/base/libs/utils/Looper.cpp文件中：
+
+```
+void Looper::wake() {
+	......
+
+	ssize_t nWrite;
+	do {
+		nWrite = write(mWakeWritePipeFd, "W", 1);
+	} while (nWrite == -1 && errno == EINTR);
+
+	.......
+}
+```
+
+​	这个wake函数很简单，只是通过打开文件描述符mWakeWritePipeFd往管道的写入一个"W"字符串。其实，往管道写入什么内容并不重要，往管道写入内容的目的是为了唤醒应用程序的主线程。前面我们在分析应用程序的消息循环时说到，当应用程序的消息队列中没有消息处理时，应用程序的主线程就会进入空闲等待状态，而这个空闲等待状态就是通过调用这个Looper类的pollInner函数来进入的，具体就是在pollInner函数中调用epoll_wait函数来等待管道中有内容可读的。
+
+​        这时候既然管道中有内容可读了，应用程序的主线程就会从这里的Looper类的pollInner函数返回到JNI层的nativePollOnce函数，最后返回到Java层中的MessageQueue.next函数中去，这里它就会发现消息队列中有新的消息需要处理了，于就会处理这个消息。
+
+#### 3.消息处理
+
+​        前面在分析消息循环时，说到应用程序的主线程是在Looper类的loop成员函数中进行消息循环过程的，这个函数定义在frameworks/base/core/java/android/os/Looper.java文件中：
+
+```
+public class Looper {
+	......
+
+	public static final void loop() {
+		Looper me = myLooper();
+		MessageQueue queue = me.mQueue;
+
+		......
+
+		while (true) {
+			Message msg = queue.next(); // might block
+			......
+
+			if (msg != null) {
+				if (msg.target == null) {
+					// No target is a magic identifier for the quit message.
+					return;
+				}
+
+				......
+
+				msg.target.dispatchMessage(msg);
+				
+				......
+
+				msg.recycle();
+			}
+		}
+	}
+
+	......
+}
+```
+
+​	它从消息队列中获得消息对象msg后，就会调用它的target成员变量的dispatchMessage函数来处理这个消息。在前面分析消息的发送时说过，这个消息对象msg的成员变量target是在发送消息的时候设置好的，一般就通过哪个Handler来发送消息，就通过哪个Handler来处理消息。
+
+​        我们继续以前面分析消息的发送时所举的例子来分析消息的处理过程。前面说到，在[Android应用程序启动过程源代码分析](http://blog.csdn.net/luoshengyang/article/details/6689748)这篇文章的Step 30中，ActivityManagerService通过调用ApplicationThread类的scheduleLaunchActivity函数通知应用程序，它可以加载应用程序的默认Activity了，而ApplicationThread类的scheduleLaunchActivity函数最终把这个请求封装成一个消息，然后通过ActivityThread类的成员变量mH来把这个消息加入到应用程序的消息队列中去。现在要对这个消息进行处理了，于是就会调用H类的dispatchMessage函数进行处理。
+
+​        H类没有实现自己的dispatchMessage函数，但是它继承了父类Handler的dispatchMessage函数，这个函数定义在frameworks/base/core/java/android/os/ Handler.java文件中：
+
+```
+public class Handler {
+	......
+
+	public void dispatchMessage(Message msg) {
+		if (msg.callback != null) {
+			handleCallback(msg);
+		} else {
+			if (mCallback != null) {
+				if (mCallback.handleMessage(msg)) {
+					return;
+				}
+			}
+			handleMessage(msg);
+		}
+	}
+
+	......
+}
+```
+
+​	这里的消息对象msg的callback成员变量和Handler类的mCallBack成员变量一般都为null，于是，就会调用Handler类的handleMessage函数来处理这个消息，由于H类在继承Handler类时，重写了handleMessage函数，因此，这里调用的实际上是H类的handleMessage函数，这个函数定义在frameworks/base/core/java/android/app/ActivityThread.java文件中：
+
+```
+public final class ActivityThread {  
+  
+    ......  
+  
+    private final class H extends Handler {  
+  
+        ......  
+  
+        public void handleMessage(Message msg) {  
+            ......  
+            switch (msg.what) {  
+            case LAUNCH_ACTIVITY: {  
+                ActivityClientRecord r = (ActivityClientRecord)msg.obj;  
+  
+                r.packageInfo = getPackageInfoNoCheck(  
+                    r.activityInfo.applicationInfo);  
+                handleLaunchActivity(r, null);  
+            } break;  
+            ......  
+            }  
+  
+        ......  
+  
+    }  
+  
+    ......  
+}
+```
+
+​	因为前面在分析消息的发送时所举的例子中，发送的消息的类型为H.LAUNCH_ACTIVITY，因此，这里就会调用ActivityThread类的handleLaunchActivity函数来真正地处理这个消息了，后面的具体过程就可以参考Android应用程序启动过程源代码分析这篇文章了。
+
+​         至此，我们就从消息循环、消息发送和消息处理三个部分分析完Android应用程序的消息处理机制了，为了更深理解，这里我们对其中的一些要点作一个总结：
+
+​         **A. Android应用程序的消息处理机制是由消息循环、消息发送和消息处理三个部分组成的。**
+
+​         **B. Android应用程序的主线程在进入消息循环过程前，会在内部创建一个Linux管道（Pipe），这个管道的作用是使得Android应用程序主线程在消息队列为空时可以进入空闲等待状态，并且使得当应用程序的消息队列有消息需要处理时唤醒应用程序的主线程。**
+
+​         **C. Android应用程序的主线程进入空闲等待状态的方式实际上就是在管道的读端等待管道中有新的内容可读，具体来说就是是通过Linux系统的Epoll机制中的epoll_wait函数进行的。**
+
+​         **D. 当往Android应用程序的消息队列中加入新的消息时，会同时往管道中的写端写入内容，通过这种方式就可以唤醒正在等待消息到来的应用程序主线程。**
+
+​         **E. 当应用程序主线程在进入空闲等待前，会认为当前线程处理空闲状态，于是就会调用那些已经注册了的IdleHandler接口，使得应用程序有机会在空闲的时候处理一些事情。**
+
+
+
+> #### 参考资料：
+>
+> https://developer.android.com/guide/index.html
+>
+> https://blog.csdn.net/luoshengyang/article/details/6817933
+>
+> https://blog.csdn.net/code__man/article/details/79108191
