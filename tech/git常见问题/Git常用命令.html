@@ -1,0 +1,30 @@
+﻿<!DOCTYPE html>
+<html class="theme theme-white">
+<head>
+<meta charset="utf-8">
+<title>Git常用命令</title>
+<link href="https://www.zybuluo.com/static/assets/template-theme-white.css" rel="stylesheet" media="screen">
+<style type="text/css">
+
+#wmd-preview h1  {
+    color: #0077bb; /* 将标题改为蓝色 */
+}</style>
+</head>
+<body class="theme theme-white">
+<div id="wmd-preview" class="wmd-preview wmd-preview-full-reader"><div class="md-section-divider"></div><div class="md-section-divider"></div><h1 data-anchor-id="48um" id="git常用命令">Git常用命令</h1><p data-anchor-id="hh74"><code>GIT</code></p><hr><div class="md-section-divider"></div><h1 data-anchor-id="84j2" id="专有名词说明">专有名词说明</h1><ol data-anchor-id="xwx2">
+<li>版本库:.git文件夹就是整个版本库</li>
+<li>暂存区:.git文件夹里面有很多数据，其中比较重要的是暂存区，分支，历史仓库</li>
+<li>工作区:项目中除.git文件夹之外的就是工作区</li>
+</ol><div class="md-section-divider"></div><h1 data-anchor-id="jgme" id="变量配置">变量配置</h1><div class="md-section-divider"></div><h3 data-anchor-id="eoqc" id="用户名和邮件地址">用户名和邮件地址</h3><div class="md-section-divider"></div><pre class="prettyprint linenums prettyprinted" data-anchor-id="4sth"><ol class="linenums"><li class="L0"><code><span class="pln">git config </span><span class="pun">--</span><span class="kwd">global</span><span class="pln"> user</span><span class="pun">.</span><span class="pln">name </span><span class="str">"yuyejiang"</span></code></li><li class="L1"><code><span class="pln">git config </span><span class="pun">--</span><span class="kwd">global</span><span class="pln"> user</span><span class="pun">.</span><span class="pln">email </span><span class="str">"980201346@qq.com"</span></code></li></ol></pre><div class="md-section-divider"></div><h3 data-anchor-id="62kt" id="别名设置">别名设置</h3><div class="md-section-divider"></div><pre class="prettyprint linenums prettyprinted" data-anchor-id="csgy"><ol class="linenums"><li class="L0"><code><span class="pln">git config </span><span class="pun">--</span><span class="kwd">global</span><span class="pln"> </span><span class="kwd">alias</span><span class="pun">.</span><span class="pln">st status</span></code></li><li class="L1"><code><span class="pln">git config </span><span class="pun">--</span><span class="kwd">global</span><span class="pln"> </span><span class="kwd">alias</span><span class="pun">.</span><span class="pln">ci commit</span></code></li><li class="L2"><code><span class="pln">git config </span><span class="pun">--</span><span class="kwd">global</span><span class="pln"> </span><span class="kwd">alias</span><span class="pun">.</span><span class="pln">co checkout</span></code></li><li class="L3"><code><span class="pln">git config </span><span class="pun">--</span><span class="kwd">global</span><span class="pln"> </span><span class="kwd">alias</span><span class="pun">.</span><span class="pln">br branch</span></code></li></ol></pre><div class="md-section-divider"></div><h3 data-anchor-id="d3lw" id="log显示格式设置">Log显示格式设置</h3><div class="md-section-divider"></div><pre class="prettyprint linenums prettyprinted" data-anchor-id="qrsb"><ol class="linenums"><li class="L0"><code><span class="pln">git config </span><span class="pun">--</span><span class="kwd">global</span><span class="pln"> </span><span class="kwd">alias</span><span class="pun">.</span><span class="pln">glog </span><span class="str">"log --graph --pretty=format:'%Cred%h%Creset -%C(yellow)%d%Creset %s %Cgreen(%cr)%Creset %cn' --abbrev-commit --date=relative"</span></code></li></ol></pre><div class="md-section-divider"></div><h1 data-anchor-id="2pcx" id="git-初始化">Git 初始化</h1><div class="md-section-divider"></div><h3 data-anchor-id="8o6z" id="本地创建仓库并关联远程仓库">本地创建仓库并关联远程仓库</h3><ol data-anchor-id="0cey">
+<li><code>git init</code> 创建本地仓库</li>
+<li><code>git add .</code> 本地仓库中的文件全部添加到暂存区</li>
+<li><code>git commit -m "初始化项目"</code> 提交</li>
+<li><code>git remote add &lt;远程url别名，自己定义&gt; &lt;url&gt;</code> </li>
+<li><code>git push &lt;远程url别名，自己定义&gt; &lt;local branch name&gt;</code></li>
+<li><code>git push --set-upstream &lt;远程url别名，自己定义&gt; &lt;远程分支名称&gt;</code> 设置本地分支push时提交到服务器的默认分支</li>
+</ol><div class="md-section-divider"></div><h3 data-anchor-id="1lmt" id="直接从远程克隆仓库">直接从远程克隆仓库</h3><ol data-anchor-id="ptiy">
+<li><code>git clone &lt;远程仓库地址&gt;</code></li>
+<li><code>git pull &lt;远程仓库名称&gt; &lt;远程分支名&gt;:&lt;本地分支名&gt;</code> 命令中<code>:&lt;本地分支名&gt;</code>可以忽略，忽略之后默认代码合并到当前分支</li>
+</ol></div>
+</body>
+</html>
