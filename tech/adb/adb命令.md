@@ -1,0 +1,1 @@
+在windows平台下cmd命令行中，输入`adb devices`查看当前连接的设备；如果要进入不同设备的adb命令行，可以使用`adb -s 849017f9 shell`命令加以区分。
