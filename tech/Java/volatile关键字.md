@@ -2,7 +2,7 @@
 >
 > [Java并发编程：volatile关键字解析](http://www.cnblogs.com/dolphin0520/p/3920373.html)
 >
-> [Java 中的双重检查（Double-Check）](http://blog.csdn.net/dl88250/article/details/5439024)
+> [Java中的双重检查（Double-Check）](http://blog.csdn.net/dl88250/article/details/5439024)
 >
 > [单例模式与双重检测](http://www.iteye.com/topic/652440)
 
