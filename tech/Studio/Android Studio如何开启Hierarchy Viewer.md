@@ -17,7 +17,8 @@
 #  cd data
 #  chmod 777 mprop //更改mprop文件权限
 # ./mprop ro.debuggable 1 //修改值为1；修改后可使用getprop ro.debuggable查看是否修改成功
-#  stop //关机
-#  start //重启
+#  adb kill-server //关闭adb服务
+#  adb start-server //重启adb服务
 ```
 
+经过一波操作过后，即可开启神器。
