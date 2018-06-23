@@ -8,3 +8,13 @@
 接下来你就能看到非常炫酷的历史记录，效果如下图：
 
 ![gource](C:\Users\OneDay\Desktop\tech\tech\git\images\gource.png)
+
+
+
+#### 额外设置
+
+```
+gource -s 1 可以设置一天的变更融入到一秒
+-f可以全屏
+```
+
