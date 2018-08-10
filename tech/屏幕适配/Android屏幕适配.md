@@ -12,7 +12,7 @@
 
 下面这张图片所显示的内容足以充分说明当今Android系统碎片化问题的严重性，因为该图片中的每一个矩形都代表着一种Android设备。
 
-![android碎片化](C:\Users\OneDay\Desktop\tech\tech\屏幕适配\imgs\android碎片化.png)
+![android碎片化](.\imgs\android碎片化.png)
 
 详细的统计数据可以看 [这里](https://opensignal.com/reports/2014/android-fragmentation/)。
 
@@ -20,7 +20,7 @@
 
 下面这张图是Android屏幕尺寸的示意图，在这张图里面，蓝色矩形的大小代表不同尺寸，颜色深浅则代表所占百分比的大小。
 
-![android屏幕碎片化](C:\Users\OneDay\Desktop\tech\tech\屏幕适配\imgs\android屏幕碎片化.png)
+![android屏幕碎片化](.\imgs\android屏幕碎片化.png)
 
 **那么，屏幕适配的目的就是为了让应用程序在不同的分辨率下有较好的显示效果。**
 
@@ -76,7 +76,7 @@ mdpi、hdpi、xdpi、xxdpi用来修饰Android中的drawable文件夹及values文
 
 在设计图标时，对于五种主流的像素密度（MDPI、HDPI、XHDPI、XXHDPI 和 XXXHDPI）应按照 `2:3:4:6:8` 的比例进行缩放。如下图所示：
 
-![scale_seed](C:\Users\OneDay\Desktop\tech\tech\屏幕适配\imgs\scale_seed.png)
+![scale_seed](.\imgs\scale_seed.png)
 
 例如，一个启动图标的尺寸为48x48 dp，这表示在 MDPI 的屏幕上其实际尺寸应为 48x48 px，在 HDPI 的屏幕上其实际大小是 MDPI 的 1.5 倍 (72x72 px)，在 XDPI 的屏幕上其实际大小是 MDPI 的 2 倍 (96x96 px)，依此类推。
 
