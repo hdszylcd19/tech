@@ -7,7 +7,7 @@
 
 接下来你就能看到非常炫酷的历史记录，效果如下图：
 
-![gource](C:\Users\OneDay\Desktop\tech\tech\git\images\gource.png)
+![gource](.\images\gource.png)
 
 
 
