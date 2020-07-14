@@ -1,0 +1,6 @@
+1、 The CBOE Volatility Index – VIX (White Paper)
+http://www.cboe.com/micro/vix/vixwhite.pdf
+
+2、Chicago Board Options Exchange, CBOE Volatility Index: VIX [VIXCLS], retrieved from FRED, Federal Reserve Bank of St. Louis;
+https://fred.stlouisfed.org/series/VIXCLS, February 27, 2018. 
+https://fred.stlouisfed.org/graph/?g=fjSM 
