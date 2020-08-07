@@ -1,0 +1,16 @@
+1、 Bitcoin: A Peer-to-Peer Electronic Cash System，Satoshi Nakamoto
+
+2、 Mastering Bitcoin， Andreas M. Antonopoulos 
+http://chimera.labs.oreilly.com/books/1234000001802/index.html
+
+3、 Bitcoin Developer Guide
+https://bitcoin.org/en/developer-guide
+
+4、 Bitcoin mining the hard way: the algorithms, protocols, and bytes，Ken Shirriff
+http://www.righto.com/2014/02/bitcoin-mining-hard-way-algorithms.html
+
+5、 How Bitcoin Works，Michael Nielsen
+http://www.michaelnielsen.org/ddi/how-the-bitcoin-protocol-actually-works/
+
+6、 Bitcoins the hard way: Using the raw Bitcoin protocol, Ken Shirriff
+http://www.righto.com/2014/02/bitcoins-hard-way-using-raw-bitcoin.html
