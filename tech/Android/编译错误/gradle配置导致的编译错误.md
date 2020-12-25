@@ -169,6 +169,8 @@ java.lang.RuntimeException
 
 > Studio版本：4.0.2
 >
+> Gradle版本：4.6
+>
 > 参考链接：
 > [More than one file was found with OS independent path](https://stackoverflow.com/questions/52518378/more-than-one-file-was-found-with-os-independent-path-meta-inf-proguard-android)
 
@@ -189,9 +191,13 @@ java.lang.RuntimeException
 More than one file was found with OS independent path 'META-INF/proguard/coroutines.pro'
 ```
 
-​	这应该是同一类的错误，
+​	这应该是同一类的错误，发现了多个相关的文件。
 
 ### 解决方案
+
+> Studio版本：4.0.2
+>
+> Gradle版本：4.6
 
 ​	这应该是同一类的错误，可以在module中的gradle文件中添加如下配置即可。
 
@@ -201,5 +207,53 @@ android {
          exclude 'META-INF/proguard/coroutines.pro'
      }
  }
+```
+
+## gradlew :app:dependencies报错
+
+### 问题描述
+
+当我想查看项目中的依赖库时，会使用到这个命令。但是今天出现了如下报错信息：
+
+```groovy
+D:\dev\corp\QuestionType3.0>gradlew :app:dependencies
+Starting a Gradle Daemon, 1 incompatible Daemon could not be reused, use --status for details
+
+FAILURE: Build failed with an exception.
+
+* What went wrong:
+Unable to start the daemon process.
+This problem might be caused by incorrect configuration of the daemon.
+For example, an unrecognized jvm option is used.
+Please refer to the user guide chapter on the daemon at https://docs.gradle.org/4.6/userguide/gradle_daemon.html
+Please read the following process output to find out more:
+-----------------------
+ERROR: transport error 202: bind failed: Address already in use
+ERROR: JDWP Transport dt_socket failed to initialize, TRANSPORT_INIT(510)
+JDWP exit error AGENT_ERROR_TRANSPORT_INIT(197): No transports initialized [debugInit.c:750]
+
+
+* Try:
+Run with --stacktrace option to get the stack trace. Run with --info or --debug option to get more log output. Run with --scan to get full insights.
+
+* Get more help at https://help.gradle.org
+```
+
+​	看字面意思，应该是已经有一个守护进程在运行了。
+
+### 解决方案
+
+> Studio版本：4.0.2
+>
+> Gradle版本：4.6
+>
+> 参考链接：
+>
+> https://stackoverflow.com/questions/49074620/starting-a-gradle-daemon-1-busy-and-6-stopped-daemons-could-not-be-reused-use
+
+使用如下命令终止守护进程即可。
+
+```groovy
+gradlew --stop
 ```
 
