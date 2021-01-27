@@ -4,6 +4,8 @@
 
 > Studio版本：4.0.2
 >
+> Gradle版本：4.6
+>
 > 参考链接：
 >
 > # [transformClassesWithDexBuilderForDebug](https://stackoverflow.com/questions/52645163/lombok-1-18-2-throws-transformclasseswithdexbuilderfordebug)
@@ -167,12 +169,8 @@ java.lang.RuntimeException
 
 ### 解决方案
 
-> Studio版本：4.0.2
->
-> Gradle版本：4.6
->
 > 参考链接：
-> [More than one file was found with OS independent path](https://stackoverflow.com/questions/52518378/more-than-one-file-was-found-with-os-independent-path-meta-inf-proguard-android)
+>[More than one file was found with OS independent path](https://stackoverflow.com/questions/52518378/more-than-one-file-was-found-with-os-independent-path-meta-inf-proguard-android)
 
 在gradle.properties中添加如下两行配置即可：
 
@@ -182,6 +180,10 @@ java.lang.RuntimeException
 ```
 
 ## More than one file was found with OS independent
+
+> Studio版本：4.0.2
+>
+> Gradle版本：4.6
 
 ### 问题描述
 
@@ -195,10 +197,6 @@ More than one file was found with OS independent path 'META-INF/proguard/corouti
 
 ### 解决方案
 
-> Studio版本：4.0.2
->
-> Gradle版本：4.6
-
 ​	这应该是同一类的错误，可以在module中的gradle文件中添加如下配置即可。
 
 ```groovy
@@ -210,6 +208,15 @@ android {
 ```
 
 ## gradlew :app:dependencies报错
+
+> Studio版本：4.0.2
+>
+> Gradle版本：4.6
+>
+
+参考链接：
+
+https://stackoverflow.com/questions/49074620/starting-a-gradle-daemon-1-busy-and-6-stopped-daemons-could-not-be-reused-use
 
 ### 问题描述
 
@@ -243,17 +250,47 @@ Run with --stacktrace option to get the stack trace. Run with --info or --debug 
 
 ### 解决方案
 
-> Studio版本：4.0.2
->
-> Gradle版本：4.6
->
-> 参考链接：
->
-> https://stackoverflow.com/questions/49074620/starting-a-gradle-daemon-1-busy-and-6-stopped-daemons-could-not-be-reused-use
-
 使用如下命令终止守护进程即可。
 
 ```groovy
 gradlew --stop
+```
+
+## Connection timed out: connect
+
+> Studio版本：4.0.2
+>
+> Gradle版本：4.6
+
+### 问题描述
+
+​	在导入“学海输入法”项目时，一直报如下错误：
+
+```groovy
+Connection timed out: connect. If you are behind an HTTP proxy, please configure the proxy settings either in IDE or Gradle.
+```
+
+​	看字面意思，应该是代理或者网络的问题导致的。后经过各种尝试还是无法解决该问题。
+
+### 解决方案
+
+​	在项目根目录下的build.gradle文件中添加google()仓库，重新编译即可。
+
+```java
+buildscript {
+    repositories {
+        // 添加google仓库
+        google()
+    }
+    dependencies {
+        classpath 'com.android.tools.build:gradle:3.2.1'
+    }
+}
+allprojects {
+    repositories {
+        // 添加google仓库
+        google()
+    }
+}
 ```
 
