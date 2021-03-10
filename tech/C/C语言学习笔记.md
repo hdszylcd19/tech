@@ -447,3 +447,153 @@ int main(){
 }
 ```
 
+## const
+
+有时候我们希望定义这样一种变量，它的值不能被改变，在整个作用域中都保持固定。例如，用一个变量来表示班级的最大人数，或者表示缓冲区的大小。为了满足这一要求，可以使用`const`关键字对变量加以限定：
+
+```c
+const int MaxNum = 100;  //班级的最大人数
+```
+
+这样 MaxNum 的值就不能被修改了，任何对 MaxNum 赋值的行为都将引发错误：
+
+```c
+MaxNum = 90;  //错误，试图向 const 变量写入数据
+```
+
+我们经常将 const 变量称为常量（Cons[tan](http://c.biancheng.net/ref/tan.html)t）。创建常量的格式通常为：
+
+```c
+const type name = value;
+```
+
+const 和 type 都是用来修饰变量的，它们的位置可以互换，也就是将 type 放在 const 前面：
+
+```c
+type const name = value;
+```
+
+但我们通常采用第一种方式，不采用第二种方式。另外建议将常量名的首字母大写，以提醒程序员这是个常量。
+
+由于常量一旦被创建后其值就不能再改变，所以常量必须在定义的同时赋值（初始化），后面的任何赋值行为都将引发错误。一如既往，初始化常量可以使用任意形式的表达式，如下所示：
+
+```c
+#include <stdio.h>
+int getNum(){
+    return 100;
+}
+int main(){
+    int n = 90;
+    const int MaxNum1 = getNum();  //运行时初始化
+    const int MaxNum2 = n;  //运行时初始化
+    const int MaxNum3 = 80;  //编译时初始化
+    printf("%d, %d, %d\n", MaxNum1, MaxNum2, MaxNum3);
+    return 0;
+}
+```
+
+运行结果：
+100, 90, 80
+
+### const和指针
+
+const 也可以和指针变量一起使用，这样可以限制指针变量本身，也可以限制指针指向的数据。const 和指针一起使用会有几种不同的顺序，如下所示：
+
+```c 
+const int *p1;
+int const *p2;
+int * const p3;
+```
+
+**在最后一种情况下，指针是只读的，也就是 p3 本身的值不能被修改；**
+
+**在前面两种情况下，指针所指向的数据是只读的，也就是 p1、p2 本身的值可以修改（指向不同的数据），但它们指向的数据不能被修改。**
+
+当然，指针本身和它指向的数据都有可能是只读的，下面的两种写法能够做到这一点：
+
+```c
+const int * const p4;
+int const * const p5;
+```
+
+const 和指针结合的写法多少有点让初学者摸不着头脑，大家可以这样来记忆：
+
+**const 离变量名近就是用来修饰指针变量的，离变量名远就是用来修饰指针指向的数据，如果近的和远的都有，那么就同时修饰指针变量以及它指向的数据。**
+
+### const和函数形参
+
+在C语言中，单独定义 const 变量没有明显的优势，完全可以使用`#define`命令代替。
+
+**const 通常用在函数形参中，如果形参是一个指针，为了防止在函数内部修改指针指向的数据，就可以用 const 来限制。**
+
+在C语言标准库中，有很多函数的形参都被 const 限制了，下面是部分函数的原型：
+
+```c
+size_t strlen ( const char * str );
+int strcmp ( const char * str1, const char * str2 );
+char * strcat ( char * destination, const char * source );
+char * strcpy ( char * destination, const char * source );
+int system (const char* command);
+int puts ( const char * str );
+int printf ( const char * format, ... );
+```
+
+我们自己在定义函数时也可以使用 const 对形参加以限制，例如查找字符串中某个字符出现的次数：
+
+```c
+#include <stdio.h>
+size_t strnchr(const char *str, char ch){
+    int i, n = 0, len = strlen(str);
+    for(i=0; i<len; i++){
+        if(str[i] == ch){
+            n++;
+        }
+    }
+   
+    return n;
+}
+int main(){
+    char *str = "http://c.biancheng.net";
+    char ch = 't';
+    int n = strnchr(str, ch);
+    printf("%d\n", n);
+    return 0;
+}
+```
+
+运行结果：
+3
+
+根据 strnchr() 的功能可以推断，函数内部要对字符串 str 进行遍历，不应该有修改的动作，用 const 加以限制，不但可以防止由于程序员误操作引起的字符串修改，还可以给用户一个提示，函数不会修改你提供的字符串，请你放心。
+
+### const和非const类型转换
+
+当一个指针变量 str1 被 const 限制时，并且类似`const char *str1`这种形式，说明指针指向的数据不能被修改；如果将 str1 赋值给另外一个未被 const 修饰的指针变量 str2，就有可能发生危险。因为通过 str1 不能修改数据，而赋值后通过 str2 能够修改数据了，意义发生了转变，所以编译器不提倡这种行为，会给出错误或警告。
+
+也就是说，`const char *`和`char *`是不同的类型，不能将`const char *`类型的数据赋值给`char *`类型的变量。但反过来是可以的，编译器允许将`char *`类型的数据赋值给`const char *`类型的变量。
+
+这种限制很容易理解，`char *`指向的数据有读取和写入权限，而`const char *`指向的数据只有读取权限，降低数据的权限不会带来任何问题，但提升数据的权限就有可能发生危险。
+
+C语言标准库中很多函数的参数都被 const 限制了，但我们在以前的编码过程中并没有注意这个问题，经常将非 const 类型的数据传递给 const 类型的形参，这样做从未引发任何副作用，原因就是上面讲到的，将非 const 类型转换为 const 类型是允许的。
+
+下面是一个将 const 类型赋值给非 const 类型的例子：
+
+```c
+#include <stdio.h>
+void func(char *str){ }
+int main(){
+    const char *str1 = "c.biancheng.net";
+    char *str2 = str1;
+    func(str1);
+    return 0;
+}
+```
+
+第7、8行代码分别通过赋值、传参（传参的本质也是赋值）将 const 类型的数据交给了非 const 类型的变量，编译器不会容忍这种行为，会给出警告，甚至直接报错。
+
+## struct
+
+
+
+### 字节对齐
+
