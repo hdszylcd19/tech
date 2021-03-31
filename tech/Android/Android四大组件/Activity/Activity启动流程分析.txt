@@ -1,0 +1,5 @@
+onCreate(): 9s519ms
+
+onStart(): 49s586ms
+
+onResume(): 1m41s546ms
