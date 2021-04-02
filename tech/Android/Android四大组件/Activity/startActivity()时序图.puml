@@ -1,0 +1,35 @@
+@startuml
+/'标题'/
+title <size:20>startActivity()时序图</size>\nAPI 28 
+
+box #LightBlue
+participant Activity as A
+participant Instrumentation as I
+participant ActivityManagerService as AMS
+end box
+
+/'自动开启生命线'/
+autoactivate on
+
+[->A:startActivity(Intent)
+A->A:startActivity(Intent,Bundle)
+A->A:startActivityForResult(Intent,int)
+A->A:startActivityForResult(Intent,int,Bundle)
+
+/'7个参数'/
+A->I:execStartActivity(Context,IBinder,IBinder,Activity,Intent,int,Bundle)
+
+/'跨进程调用，交给AMS启动目标Activity'/
+/'10个参数'/
+I-[#gold]>AMS #gold:startActivity(IApplicationThread,String,Intent,String,IBinder,String,int,int,ProfilerInfo,Bundle)
+Note right of AMS: 跨进程调用，交给AMS启动目标Activity
+AMS--[#gold]>I
+
+return
+
+return
+return
+return
+[<--A:Done
+
+@enduml
