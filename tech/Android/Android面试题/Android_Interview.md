@@ -8,6 +8,34 @@ binder包括BinderProxy、BpBinder等各种Binder实体，以及对binder驱动�
 
 我自己来谈的话，一天时间都是不够的，还是问我具体问题吧。
 
+**【面试官】：既然你说到AIDL，那么说一说oneway吧。**
+
+oneway主要有两个特性：异步调用和串行化处理。
+
+异步调用是指应用向binder驱动发送数据后不需要挂起线程等待binder驱动的回复，而是直接结束。像一些系统服务调用应用进程的时候就会使用oneway，比如AMS调用应用进程启动Activity，这样就算应用进程中做了耗时的任务，也不会阻塞系统服务的运行。
+
+串行化处理是指对于一个服务端的AIDL接口而言，所有的oneway方法不会同时执行，binder驱动会将它们串行化处理，排队一个一个调用。
+
+**【面试官】：有了解过相关的binder协议吗？**
+
+了解过，看图会更直观一些，我来画一下图吧，首先是非oneway的情况：
+
+![binder_default协议](./imgs/binder_default协议.webp.jpg)
+
+如果是oneway的话，客户端就不需要挂起线程等待：
+
+![binder_default协议](./imgs/binder_oneway协议.webp.jpg)
+
+涉及到的binder命令也有规律，由外部发送给binder驱动的都是`BC_`开头，由binder驱动发往外部的都是`BR_`开头。
+
+**【面试官】：怎么理解客户端线程挂起等待呢？有没有实际占用CPU的调度？**
+
+这里的挂起相当于Thread的sleep，是真正的“休眠”，底层调用的是`waiteventinterruptible()`Linux系统函数。
+
+**【面试官】：你是从哪里了解到`waiteventinterruptible()`函数的呢？**
+
+在学习Handler机制的时候，Handler中最关键的地方就是Looper的阻塞与唤醒，阻塞是调用了`nativePollOnce()`方法，当时对它的底层实现感兴趣，就去了解了一下，也学习到Linux用来实现阻塞/唤醒的select、poll和epoll机制。
+
 **【面试官】：基于mmap又是如何实现一次拷贝的？**
 
 其实原理很简单，我来画一个示意图：
@@ -101,5 +129,42 @@ binder机制将业务细分为不同的命令，调用`binder_ioctl()`时，传�
 
 **【面试官】：可以可以，我们再来聊点儿别的。**
 
+> 参考链接：
+>
+> [谈谈AIDL中的oneway修饰符](https://mp.weixin.qq.com/s/wD3Io-ikS1VCljNkxEb6tQ)
+> [谈谈你对binder的理解](https://mp.weixin.qq.com/s/Ef2Qy_xFeI6WU3Q0wf5czA)
+> [谈谈你对binder驱动的了解](https://mp.weixin.qq.com/s/LH_JR5Rwh1JL4B6qQkEv9Q)
+
 
 ## Handler
+
+
+
+## 四大组件
+
+> API：28
+>
+
+### Activity
+
+#### 当调用startActivity之后，都发生了什么？
+
+startActivity主要就是应用进程与system_server进程的AMS通信，AMS是实际来管理Activity组件的，负责处理启动模式，维护Activity栈等工作。startActivity的大概流程就是由应用进程通过IPC调用到AMS，AMS处理完这些工作后再通过IPC回到应用进程，创建Activity的实例，回调Activity的生命周期。
+
+**【面试官】：通过什么实现跨进程的呢？**
+
+都是通过AIDL接口，App进程到system_server进程是通过`IActivityManager.aidl`,systemserver到App进程通过`IApplicationThread.aidl`。
+
+**【面试官】：startActivity时，前后Activity的生命周期是怎样的？**
+
+旧Activity的onPause会先执行，然后新Activity依次执行onCreate、onStart、onResume，随后再执行旧Activity的onStop...
+
+**【面试官】：旧Activity的onPause一定会先执行吗？为什么？**
+
+这主要是由AMS来控制的，它会先后将前一个Activity的onPause事物和新Activity的启动事物发送给App进程，而在App端，由`IApplicationThread.aidl`接收到之后，会入队到ActivityThread.H中的消息队列中，这个也是主线程的消息队列，在队列上自然就实现了先后顺序的控制。
+
+**【面试官】：了解插件化吗？知道怎么启动一个插件中的Activity吗？**
+
+主要需要解决的问题是Activity未在manifest中注册的问题，因为在AMS中会检查Activity是否注册，而这个检查逻辑处于system_server进程，我们是无法hook的。可以在manifest中提前注册一个占位Activity，然后startActivity时进入到system_server进程之前，hook把未注册的Activity改为占位Activity，AMS检测就可以通过，然后再回到App进程后，把这个占位Activity再换成插件Activity。
+
+**【面试官】：可以可以，我们再来聊点儿别的。**
