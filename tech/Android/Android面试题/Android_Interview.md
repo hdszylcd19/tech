@@ -1090,6 +1090,8 @@ IdleHandler是通过`MessageQueue.addIdleHandler()`来添加到MessageQueue中�
 > [Android消息机制-Handler（Java层）](http://gityuan.com/2015/12/26/handler-message-framework/) 
 >
 > [Android消息机制-Handler（native层）](http://gityuan.com/2015/12/27/handler-message-native/) 
+>
+> [你管这破玩意儿叫IO多路复用？](https://mp.weixin.qq.com/s/YdIdoZ_yusVWza1PU7lWaw)
 
 ## 四大组件
 
