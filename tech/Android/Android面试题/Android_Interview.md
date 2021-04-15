@@ -140,9 +140,9 @@ binder机制将业务细分为不同的命令，调用`binder_ioctl()`时，传�
 
 ### 谈谈你对Android消息机制的理解
 
-消息机制是Android系统中两大利剑之一，其一是Binder IPC机制，另一个便是消息机制；消息机制在Java层面主要涉及到Handler、Looper、MessageQueue、Message这4个类。
+消息机制是Android系统中两大基石之一，其中一个是Binder IPC机制，另一个便是消息机制；Android系统使用大量的消息驱动方式来进行交互，比如，Android中四大组件（Activity、Service、BroadcastReceiver、ContentProvider）的启动过程，都离不开消息机制，Android系统，从某种意义上也可以说成是以消息来驱动。
 
-Android中有大量的消息驱动方式来进行交互，比如Android中的四大组件Activity、Service、BroadcastReceiver、ContentProvider的启动过程的交互，都离不开消息机制，Android从某种意义上也可以说成是一个以消息驱动的系统。
+消息机制在Java层面主要涉及到Handler、Looper、MessageQueue、Message这4个类。
 
 - Message：消息分为硬件产生的消息（如按钮、触摸）和软件生成的消息；Message中持有用于消息处理的Handler；
 - MessageQueue：消息队列的主要功能是向消息池插入消息（MessageQueue.enqueueMessage）和取走消息池的消息（MessageQueue.next）；MessageQueue中持有一组待处理的Message单向链表；
@@ -207,11 +207,28 @@ public static void main(String[] args) {
 我们首先来看一下初始化Looper的逻辑，其中，`prepare(boolean)`的方法声明如下：
 
 ```java
+// API版本28
+// android.os.Looper.java
+
+public static void prepare() {
+  prepare(true);
+}
+
 private static void prepare(boolean quitAllowed) {
     if (sThreadLocal.get() != null) {
         throw new RuntimeException("Only one Looper may be created per thread");
     }
     sThreadLocal.set(new Looper(quitAllowed));
+}
+
+public static void prepareMainLooper() {
+  prepare(false);
+  synchronized (Looper.class) {
+    if (sMainLooper != null) {
+      throw new IllegalStateException("The main Looper has already been prepared.");
+    }
+    sMainLooper = myLooper();
+  }
 }
 ```
 我们通过源码发现，每个线程只允许执行一次该方法，当多次执行时线程的TLS中已经有了Looper对象，则会抛出异常；而我们创建的Looper对象，保存到了当前线程的TLS区域中。
@@ -1114,7 +1131,7 @@ startActivity主要就是应用进程与system_server进程的AMS通信，AMS是
 
 **【面试官】：旧Activity的onPause一定会先执行吗？为什么？**
 
-这主要是由AMS来控制的，它会先后将前一个Activity的onPause事物和新Activity的启动事物发送给App进程，而在App端，由`IApplicationThread.aidl`接收到之后，会入队到ActivityThread.H中的消息队列中，这个也是主线程的消息队列，在队列上自然就实现了先后顺序的控制。
+这主要是由AMS来控制的，它会先后将前一个Activity的onPause事务和新Activity的启动事务发送给App进程，而在App端，由`IApplicationThread.aidl`接收到之后，会入队到ActivityThread.H中的消息队列中，这个也是主线程的消息队列，在队列上自然就实现了先后顺序的控制。
 
 **【面试官】：了解插件化吗？知道怎么启动一个插件中的Activity吗？**
 
