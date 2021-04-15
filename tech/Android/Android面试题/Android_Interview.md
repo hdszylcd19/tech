@@ -140,7 +140,9 @@ binder机制将业务细分为不同的命令，调用`binder_ioctl()`时，传�
 
 ### 谈谈你对Android消息机制的理解
 
-Handler是Android中线程间通信的一种消息机制，Android中有大量的消息驱动方式来进行交互，比如Android中的四大组件Activity、Service、BroadcastReceiver、ContentProvider的启动过程的交互，都离不开消息机制，Android从某种意义上也可以说成是一个以消息驱动的系统。消息机制在Java层面主要涉及到Handler、Looper、MessageQueue、Message这4个类。
+消息机制是Android系统中两大利剑之一，其一是Binder IPC机制，另一个便是消息机制；消息机制在Java层面主要涉及到Handler、Looper、MessageQueue、Message这4个类。
+
+Android中有大量的消息驱动方式来进行交互，比如Android中的四大组件Activity、Service、BroadcastReceiver、ContentProvider的启动过程的交互，都离不开消息机制，Android从某种意义上也可以说成是一个以消息驱动的系统。
 
 - Message：消息分为硬件产生的消息（如按钮、触摸）和软件生成的消息；Message中持有用于消息处理的Handler；
 - MessageQueue：消息队列的主要功能是向消息池插入消息（MessageQueue.enqueueMessage）和取走消息池的消息（MessageQueue.next）；MessageQueue中持有一组待处理的Message单向链表；
