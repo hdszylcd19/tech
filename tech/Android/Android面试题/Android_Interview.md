@@ -386,14 +386,38 @@ select/poll/epoll都是Linux内核中IO多路复用机制，可以同时监控�
 
 **select缺点：**
 
+- select调用需要传入fd数组，需要拷贝一份到内核，高并发场景下，这样的拷贝消耗的资源是惊人的。（可优化为不复制）
+- select在内核层，仍然是通过遍历的方式检查文件描述符的就绪状态，是个同步过程，只不过无系统调用切换上下文的开销。（内核层可优化为异步事件通知）
+- select仅仅返回可读文件描述符的个数，具体哪个可读还是要用户自己遍历。（可优化为只返回给用户就绪的文件描述符，无需用户做无效的遍历）
+
 - 文件描述符个数受限：单进程能够监控的文件描述符的数量存在最大限制，在Linux上一般为1024，可以通过修改宏定义增大上限，但同样存在效率低的弱势；
 - 性能衰减严重：IO随着监控的描述符数量增长，其性能会线性下降。
 
+整个select流程如下：
+
+![select流程](./imgs/select流程.webp.jpg)
+
+可以看到，这种方式，既做到了一个线程处理多个客户端连接（文件描述符），又减少了系统调用的开销（多个文件描述符只有一次select系统调用 + n次就绪状态的文件描述符的read系统调用）。
+
 **poll缺点：**
 
-- select和poll都需要在返回后，通过遍历文件描述符来获取已经就绪的socket。同时连接的大量客户端在同一时刻可能只有很少的处于就绪状态，因此，随着监视的描述符数量的增长，其性能会线性下降。
+- poll和select的主要区别就是，去掉了select只能监听1024个文件描述符的限制；select和poll都需要在返回后，通过遍历文件描述符来获取已经就绪的socket。同时连接的大量客户端在同一时刻可能只有很少的处于就绪状态，因此，随着监视的描述符数量的增长，其性能会线性下降。
 
 epoll是在Linux内核2.6中提出的，是select和poll的增强版。相对于select和poll来说，epoll更加灵活，没有描述符数量的限制。epoll使用一个文件描述符管理多个描述符，将用户空间的文件描述符的事件存放到内核的一个事件列表中，这样在用户空间和内核空间的copy只需要1次。epoll机制是Linux中最高效的IO多路复用机制，在一处等待多个文件句柄的IO事件。
+
+epoll是最优方案，它解决了select和poll的一些问题。
+
+还记得上面说的select的三个细节么？
+
+- select调用需要传入fd数组，需要拷贝一份到内核，高并发场景下，这样的拷贝消耗的资源是惊人的。（可优化为不复制）
+- select在内核层，仍然是通过遍历的方式检查文件描述符的就绪状态，是个同步过程，只不过无系统调用切换上下文的开销。（内核层可优化为异步事件通知）
+- select仅仅返回可读文件描述符的个数，具体哪个可读还是要用户自己遍历。（可优化为只返回给用户就绪的文件描述符，无需用户做无效的遍历）
+
+所以epoll主要就是针对这三点进行了改进。
+
+- 内核中保存一份文件描述符集合，无需用户每次都重新传入，只需告诉内核修改的部分即可。
+- 内核不再通过轮询的方式找到就绪的文件描述符，而是通过异步IO事件唤醒。
+- 内核仅会将有IO事件的文件描述符返回给用户，用户无需遍历整个文件描述符集合。
 
 **select/poll都只有一个方法，epoll机制操作过程有三个方法：`epoll_create()`、`epoll_ctl()`、`epoll_wait()`。**
 
@@ -455,8 +479,12 @@ int epoll_wait(int epfd, struct epoll_event * events, int maxevents, int timeout
 ##### epoll优势
 
 - 监视的描述符数量不受限制，所支持的fd上限是最大可以打开文件得数目，具体数目可以使用`cat /proc/sys/fs/file-max`命令查看，一般来说，这个数目和系统内存关系很大，以3G内存的手机来说，这个值为20-30万；
+
 - IO性能不会随着监视fd的数量增长而下降。epoll不同于select和poll中的轮询方式，而是通过每个fd定义的回调函数来实现的，只有就绪的fd才会执行回调函数；
+
 - 如果没有大量的空闲或者死亡连接，epoll的效率并不会比select/poll高很多；但当遇到大量的空闲连接的场景下，epoll的效率则大大高于select和poll。
+
+  
 
 #### 步骤2：初始化Handler
 
@@ -1102,13 +1130,15 @@ IdleHandler是通过`MessageQueue.addIdleHandler()`来添加到MessageQueue中�
 >
 > [Android同步屏障机制](https://juejin.cn/post/6915339994234126349/)
 >
-> [select/poll/epoll机制对比分析](http://gityuan.com/2015/12/06/linux_epoll/)
->
 > [Android消息机制-Handler（Java层）](http://gityuan.com/2015/12/26/handler-message-framework/) 
 >
 > [Android消息机制-Handler（native层）](http://gityuan.com/2015/12/27/handler-message-native/) 
 >
+> [select/poll/epoll机制对比分析](http://gityuan.com/2015/12/06/linux_epoll/)
+>
 > [你管这破玩意儿叫IO多路复用？](https://mp.weixin.qq.com/s/YdIdoZ_yusVWza1PU7lWaw)
+>
+> [深入揭秘epoll是如何实现IO多路复用的！](https://mp.weixin.qq.com/s/OmRdUgO1guMX76EdZn11UQ)
 
 ## 四大组件
 
