@@ -263,8 +263,8 @@ private boolean isInterestingForBackgroundTraces() {
 
 我们得到两个结论：
 
-- ANR_SHOW_BACKGROUND可以在【开发者选项】里配置显示所有“应用程序无响应”，开始后即使是该场景也会有ANR弹窗；
-- 未开启上述配置情况下，如果时后台进程，则不显示ANR弹窗。
+- ANR_SHOW_BACKGROUND可以在【开发者选项】里配置显示所有“应用程序无响应”，开启后，即使是该场景也会有ANR弹窗；
+- 未开启上述配置情况下，如果是后台进程，则不显示ANR弹窗。
 
 所以，我们不能想当然的认为，当前是非主进程就可以胡作非为。
 
@@ -275,3 +275,5 @@ private boolean isInterestingForBackgroundTraces() {
 > [Android手机在没有/data/anr目录权限的情况下如何分析ANR](https://blog.csdn.net/xjz696/article/details/97958441)
 >
 > [ANR 弹窗的显示原理](https://mp.weixin.qq.com/s/mFR7TV69LLQxsg40N_25ZQ)
+>
+> [理解Android ANR的触发原理](http://gityuan.com/2016/07/02/android-anr/)
