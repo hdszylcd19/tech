@@ -58,3 +58,82 @@ Attempted to finish an input event but the input event receiver has already been
 ### 解决方案
 
 当`ProgressDialog`不使用时，调用`dismiss()`方法，而不是`hide()`方法。
+
+## Bitmap保存到本地背景变黑
+
+### 问题描述
+
+> Studio版本：v4.0.2
+>
+> Android版本：API28
+
+当通过手写控件获取笔迹生成的Bitmap后，把Bitmap保存到本地后，背景变成了黑色，丢失了透明度。
+
+获取Bitmap方法如下：
+
+```java
+
+/**
+ * 获取手写笔迹Bitmap
+ *
+ * @param config            Bitmap配置
+ * @param isCutStrokeHeight 当该值为true时，截取有效笔迹高度；为false时，生成的bitmap为原始高度
+ */
+public synchronized Bitmap getBitmap(@NonNull Bitmap.Config config, boolean isCutStrokeHeight) {
+    Bitmap strokeBitmap;
+    
+    //...省略部分无关代码
+
+    Canvas canvas = new Canvas(strokeBitmap);
+    strokeBitmap.eraseColor(Color.TRANSPARENT); //把bitmap所有像素点填充为透明
+    drawCachedHWC(canvas);
+    return strokeBitmap;
+}
+```
+
+Bitmap保存到本地方法如下：
+
+```kotlin
+//图片保存路径savePath = /storage/emulated/0/strokes/temp//20210422_200233_645.png
+suspend fun doSaveBitmap(src: Bitmap, savePath: String, quality: Int = 100,
+                         format: Bitmap.CompressFormat = Bitmap.CompressFormat.JPEG,
+                         recycle: Boolean = true, liveData: MutableLiveData<BitmapSaveResult>) {
+    withContext(Dispatchers.IO) {
+        if (!XHFileUtil.createOrExistsFile(savePath)) {
+            val errorMsg = "创建文件失败"
+            LogUtils.e(errorMsg)
+            /*失败回调*/
+            liveData.postValue(BitmapSaveResult(savePath = savePath, errorMsg = errorMsg))
+            return@withContext
+        }
+
+        var success = false
+        var errorMsg = ""
+        var os: OutputStream? = null
+        try {
+            os = BufferedOutputStream(FileOutputStream(File(savePath)))
+            LogUtils.i("开始保存图片...")
+            success = src.compress(format, quality, os)
+            if (recycle && !src.isRecycled) src.recycle()
+        } catch (e: Exception) {
+            errorMsg = "写入文件失败"
+            LogUtils.e(errorMsg)
+            e.printStackTrace()
+        } finally {
+            try {
+                os?.close()
+            } catch (e: IOException) {
+                e.printStackTrace()
+            }
+        }
+
+        liveData.postValue(BitmapSaveResult(success, savePath, errorMsg))
+    }
+}
+```
+
+经过对比发现，保存图片到本地的文件为`.png`格式，而`doSaveBitmap()`默认使用的图片压缩格式为`JPEG`。
+
+### 解决方案
+
+修改`doSaveBitmap()`默认使用的图片压缩格式为`PNG`。
