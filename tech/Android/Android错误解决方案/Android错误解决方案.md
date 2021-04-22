@@ -137,3 +137,56 @@ suspend fun doSaveBitmap(src: Bitmap, savePath: String, quality: Int = 100,
 ### 解决方案
 
 修改`doSaveBitmap()`默认使用的图片压缩格式为`PNG`。
+
+## ViewModel初始化错误
+
+### 问题描述
+
+> Studio版本：v4.0.2
+>
+> Android版本：API28
+
+在`Activity`中初始化`ViewModel`时，遇到了如下错误：
+
+```kotlin
+//编译期错误：None of the following functions can be called with the arguments supplied.
+// 大意为：使用提供的参数不能调用以下任何函数，也就是说参数不匹配咯
+private val bitmapViewModel by lazy {
+    ViewModelProvider(this, ViewModelProvider.NewInstanceFactory()).get(BitmapViewModel::class.java)
+}
+```
+
+`ViewModelProvider`的构造方法如下：
+
+```kotlin
+public ViewModelProvider(@NonNull ViewModelStoreOwner owner, @NonNull Factory factory)
+
+public ViewModelProvider(@NonNull ViewModelStore store, @NonNull Factory factory)
+```
+
+经过一番查找发现，在该项目中使用的`support`库版本为：
+
+```java
+implementation 'com.android.support:appcompat-v7:26.1.0'
+```
+
+在`v7:26.1.0`版本中的`FragmentActivity`声明如下：
+
+```java
+public class FragmentActivity extends BaseFragmentActivityApi16 implements
+        ActivityCompat.OnRequestPermissionsResultCallback,
+        ActivityCompat.RequestPermissionsRequestCodeValidator {...}
+```
+
+我们发现`FragmentActivity`并没有实现`ViewModelStoreOwner`接口，所以才会报错！
+
+### 解决方案
+
+提升`support`库版本为：`28.0.0`！或直接使用`Androidx`库。
+
+在`v7:28.0.0`版本中的`FragmentActivity`声明如下：
+
+```java
+public class FragmentActivity extends SupportActivity implements ViewModelStoreOwner, OnRequestPermissionsResultCallback, RequestPermissionsRequestCodeValidator {...}
+```
+
