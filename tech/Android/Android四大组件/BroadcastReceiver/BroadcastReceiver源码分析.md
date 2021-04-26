@@ -192,3 +192,85 @@ public class MyBroadcastReceiver extends BroadcastReceiver {
 ```
 
 ## 发送广播
+
+Android为应用提供三种方式来发送广播：
+
+`sendOrderedBroadcast(Intent,String)`：该方法一次向一个接收器发送广播。当接收器逐个顺序执行时，接收器可以向下传递结果，也可以完全中止广播，使其不再传递给其它接收器。接收器的运行顺序可以通过匹配的`intent-filter`的`android:priority`属性来控制；具有相同优先级的接收器将按随机顺序运行。
+
+`sendBroadcast(Intent)`：该方法会按随机的顺序向所有接收器发送广播，这称为常规广播。这种方法效率更高，但也意味着接收器无法从其它接收器读取结果，无法传递从广播中收到的数据，也无法中止广播。
+
+`LocalBroadcastManager.sendBroadcast(Intent)`：该方法会将广播发送给与发送器位于同一应用中的接收器。如果您不需要跨应用发送广播，请使用本地广播。这种实现方式的效率更高（无需进行进程间通信），而且您无需担心其它应用在收发您的广播时带来的任何安全问题。
+
+以下代码展示了如何通过创建`Intent`并调用`sendBroadcast(Intent)`来发送广播。
+
+```java
+Intent intent = new Intent();
+intent.setAction(ACTION_ACT); //自定义Action
+intent.putExtra("data", "启动ACT");
+sendBroadcast(intent);
+```
+
+广播消息封装在`Intent`对象中。`Intent`的`Action`操作字符串必须提供应用的Java软件包名称语法，并唯一标识广播事件。您可以使用`putExtra(String,Bundle)`向Intent中附加其它信息。您也可以使用`Intent`的`setPackage(String)`,将广播限定到同一组织中的一组应用。
+
+**注意：虽然`Intent`既用于发送广播，也用于通过startActivity(Intent)启动Activity，但这两种操作是完全无关的。广播接收器无法查看或捕获用于启动Activity的Intent；同样，当您广播Intent时，也无法找到或启动Activity。**
+
+## 通过权限限制广播
+
+您可以通过权限将广播限定到拥有特定权限的一组应用。您可以对广播的发送器或接收器施加限制。
+
+### 带权限的发送
+
+当您调用`sendBroadcast(Intent,String)`或`sendOrderedBroadcast(Intent,String,BroadcastReceiver,Handler,int,String,Bundle)`时，可以指定权限参数。接收器若要接收此广播，则必须通过其`AndroidManifest.xml`清单文件中的标记请求该权限（如果存在危险，则会被授予该权限）。例如，以下代码会发送广播：
+
+```java
+sendBroadcast(new Intent("com.example.NOTIFY"),Manifest.permission.SEND_SMS);
+```
+
+要接收此广播，接收方应用必须请求如下权限：
+
+```java
+<uses-permission android:name="android.permission.SEND_SMS"/>
+```
+
+您可以指定现有的系统权限（如：SEND_SMS），也可以使用`<permission>`元素定义自定义权限。有关权限和安全性的一般信息，请参阅[系统权限](https://developer.android.google.cn/guide/topics/permissions/overview)。
+
+**注意：自定义权限将在安装应用时注册。定义自定义权限的应用必须在使用自定义权限的应用之前安装。**	
+
+### 带权限的接收
+
+如果您在注册广播接收器时指定了权限参数（通过`registerReceiver(BroadcastReceiver,IntentFilter,String,Handler)`或`AndroidManifest.xml`清单文件中的`<receiver>`标记指定），则广播方必须通过其`AndroidManifest.xml`清单文件中的`<uses-permission>`标记请求该权限（如果存在危险，则会被授予该权限），才能向该接收器发送`Intent`。
+
+假如，您的接收方应用具有如下所示的`AndroidManifest.xml`清单文件中声明的接收器：
+
+```java
+<receiver android:name=".MyBroadcastReceiver"
+          android:permission="android.permission.SEND_SMS">
+    <intent-filter>
+        <action android:name="android.intent.action.AIRPLANE_MODE"/>
+    </intent-filter>
+</receiver>
+```
+
+或者您的接收方应用具有如下所示的上下文注册的接收器：
+
+```java
+IntentFilter filter = new IntentFilter(Intent.ACTION_AIRPLANE_MODE_CHANGED);
+registerReceiver(receiver, filter, Manifest.permission.SEND_SMS, null );
+```
+
+那么，发送方应用必须请求如下权限，才能向这些接收器发送广播：
+
+```java
+<uses-permission android:name="android.permission.SEND_SMS"/>
+```
+
+## 安全注意事项和最佳做法
+
+以下是有关收发广播的一些安全注意事项和最佳做法：
+
+
+
+
+> 参考链接：
+> 
+> [广播概览](https://developer.android.google.cn/guide/components/broadcasts#sending-broadcasts)
