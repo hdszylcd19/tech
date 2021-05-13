@@ -138,7 +138,7 @@ suspend fun doSaveBitmap(src: Bitmap, savePath: String, quality: Int = 100,
 
 修改`doSaveBitmap()`默认使用的图片压缩格式为`PNG`。
 
-## ViewModel初始化错误
+## assets目录文件打开失败
 
 ### 问题描述
 
@@ -146,47 +146,40 @@ suspend fun doSaveBitmap(src: Bitmap, savePath: String, quality: Int = 100,
 >
 > Android版本：API28
 
-在`Activity`中初始化`ViewModel`时，遇到了如下错误：
-
-```kotlin
-//编译期错误：None of the following functions can be called with the arguments supplied.
-// 大意为：使用提供的参数不能调用以下任何函数，也就是说参数不匹配咯
-private val bitmapViewModel by lazy {
-    ViewModelProvider(this, ViewModelProvider.NewInstanceFactory()).get(BitmapViewModel::class.java)
-}
-```
-
-`ViewModelProvider`的构造方法如下：
-
-```kotlin
-public ViewModelProvider(@NonNull ViewModelStoreOwner owner, @NonNull Factory factory)
-
-public ViewModelProvider(@NonNull ViewModelStore store, @NonNull Factory factory)
-```
-
-经过一番查找发现，在该项目中使用的`support`库版本为：
+在做手写识别项目时，需要从资产目录中加载`tensorflow`识别模型`mnist.tflite`文件。遇到了如下错误：
 
 ```java
-implementation 'com.android.support:appcompat-v7:26.1.0'
+2021-05-13 11:01:05.056 21748-21748/com.xh.recognition_score_demo E/HandWritingModel: Error to setting up digit classifier.
+    java.io.FileNotFoundException: This file can not be opened as a file descriptor; it is probably compressed
+        at android.content.res.AssetManager.nativeOpenAssetFd(Native Method)
+        at android.content.res.AssetManager.openFd(AssetManager.java:820)
+        at com.xh.recognition_score_demo.digitclassifier.DigitClassifier.loadModelFile(DigitClassifier.java:89)
+        at com.xh.recognition_score_demo.digitclassifier.DigitClassifier.initializeInterpreter(DigitClassifier.java:68)
+        at com.xh.recognition_score_demo.digitclassifier.DigitClassifier.access$000(DigitClassifier.java:29)
+        at com.xh.recognition_score_demo.digitclassifier.DigitClassifier$1.run(DigitClassifier.java:55)
+        at java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1167)
+        at java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:641)
+        at java.lang.Thread.run(Thread.java:764)
 ```
 
-在`v7:26.1.0`版本中的`FragmentActivity`声明如下：
-
-```java
-public class FragmentActivity extends BaseFragmentActivityApi16 implements
-        ActivityCompat.OnRequestPermissionsResultCallback,
-        ActivityCompat.RequestPermissionsRequestCodeValidator {...}
-```
-
-我们发现`FragmentActivity`并没有实现`ViewModelStoreOwner`接口，所以才会报错！
+该错误的描述原因为：**该文件不能作为文件描述符打开，它可能被压缩了!**，猜测可能是gradle的配置有问题。
 
 ### 解决方案
 
-提升`support`库版本为：`28.0.0`！或直接使用`Androidx`库。
-
-在`v7:28.0.0`版本中的`FragmentActivity`声明如下：
+在对应模块下的`build.gradle`文件中，添加如下配置：
 
 ```java
-public class FragmentActivity extends SupportActivity implements ViewModelStoreOwner, OnRequestPermissionsResultCallback, RequestPermissionsRequestCodeValidator {...}
+android {
+
+    //...省略无关配置
+
+    //添加如下配置，不压缩tflite文件
+    aaptOptions {
+        noCompress "tflite"
+    }
+}
 ```
 
+> 参考链接：
+>
+> [This file can not be opened as a file descriptor](https://stackoverflow.com/questions/6186866/java-io-filenotfoundexception-this-file-can-not-be-opened-as-a-file-descriptor) 
