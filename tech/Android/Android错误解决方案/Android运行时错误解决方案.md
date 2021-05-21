@@ -183,3 +183,110 @@ android {
 > 参考链接：
 >
 > [This file can not be opened as a file descriptor](https://stackoverflow.com/questions/6186866/java-io-filenotfoundexception-this-file-can-not-be-opened-as-a-file-descriptor) 
+
+## dlopen failed: library "libc++_shared.so" not found
+
+### 问题描述
+
+> Studio版本：v4.0.2
+>
+> Android版本：API28
+
+在开发手写识别项目时，使用到了`opencv`和`tensorflow`库，其中`opencv`又使用到了`libc++_shared.so`。编译时并没有发生错误，但是项目跑起来后，就遇到如下错误：
+
+```java
+2021-05-21 17:27:09.582 10484-10484/com.xh.hw_recognition_demo E/AndroidRuntime: FATAL EXCEPTION: main
+    Process: com.xh.hw_recognition_demo, PID: 10484
+    java.lang.UnsatisfiedLinkError: dlopen failed: library "libc++_shared.so" not found
+        at java.lang.Runtime.loadLibrary0(Runtime.java:1016)
+        at java.lang.System.loadLibrary(System.java:1669)
+        at com.xh.hw.recognition.HWRecognitionEngine.<init>(HWRecognitionEngine.java:28)
+        at com.xh.hw.recognition.HWRecognitionEngine.init(HWRecognitionEngine.java:62)
+        at com.xh.hw.recognition.HWRecognitionEngine.init(HWRecognitionEngine.java:55)
+        at com.xh.hw_recognition_demo.app.RecognitionApplication.onCreate(RecognitionApplication.java:40)
+        at android.app.Instrumentation.callApplicationOnCreate(Instrumentation.java:1158)
+        at android.app.ActivityThread.handleBindApplication(ActivityThread.java:6244)
+        at android.app.ActivityThread.access$1200(ActivityThread.java:239)
+        at android.app.ActivityThread$H.handleMessage(ActivityThread.java:1794)
+        at android.os.Handler.dispatchMessage(Handler.java:106)
+        at android.os.Looper.loop(Looper.java:214)
+        at android.app.ActivityThread.main(ActivityThread.java:7072)
+        at java.lang.reflect.Method.invoke(Native Method)
+        at com.android.internal.os.RuntimeInit$MethodAndArgsCaller.run(RuntimeInit.java:493)
+        at com.android.internal.os.ZygoteInit.main(ZygoteInit.java:964)
+```
+
+经过不断排查后发现，其根本原因是因为`libc++_shared.so`库没有打包到APK中，导致找不到该so。
+
+### 解决方案
+
+经过查阅资料，找到一种解决该问题的特殊方式。在对应模块下的`build.gradle`中`android`节点下的`defaultConfig`节点中添加如下配置：
+
+```java
+externalNativeBuild {
+    cmake {
+        arguments "-DANDROID_STL=c++_shared"
+    }
+}
+```
+
+在`android`节点下，添加如下配置：
+
+```java
+externalNativeBuild {
+    cmake {
+        path "src/main/cpp/CMakeLists.txt"
+    }
+}
+```
+其中`CMakeLists.txt`如下：
+
+```c++
+cmake_minimum_required(VERSION 3.4.1)
+
+
+add_library( # Sets the name of the library.
+        dummy-lib
+
+        # Sets the library as a shared library.
+        SHARED
+
+        # Provides a relative path to your source file(s).
+        dummy-lib.cpp)
+
+
+find_library( # Sets the name of the path variable.
+        log-lib
+
+        # Specifies the name of the NDK library that
+        # you want CMake to locate.
+        log)
+
+target_link_libraries( # Specifies the target library.
+        dummy-lib
+
+        # Links the target library to the log library
+        # included in the NDK.
+        ${log-lib})
+```
+
+`dummy-lib.cpp`声明如下：
+
+```c++
+#include <jni.h>
+#include <string>
+
+extern "C" JNIEXPORT jstring JNICALL
+whatever(
+        JNIEnv *env,
+        jobject /* this */){
+    std::string hello = "Hello";
+    return env->NewStringUTF(hello.c_str());
+};
+```
+
+上述逻辑的主要目的是为了触发NDK编译，编译出`libc++_shared.so`，这样问题就解决了。
+
+> 参考链接：
+> 
+> [library "libc++_shared.so" not found](https://www.freesion.com/article/5401909208/)
