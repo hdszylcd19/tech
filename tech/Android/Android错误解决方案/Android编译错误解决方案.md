@@ -339,3 +339,32 @@ public class FragmentActivity extends BaseFragmentActivityApi16 implements
 public class FragmentActivity extends SupportActivity implements ViewModelStoreOwner, OnRequestPermissionsResultCallback, RequestPermissionsRequestCodeValidator {...}
 ```
 
+## Studio升级到4.2.1后，编译报错
+
+### 问题描述
+
+> Studio版本：4.2.1
+
+在手贱把Studio从`4.0.2`升级到`4.2.1`之后，编译原来的项目碰到了如下错误：
+
+```groovy
+could not determine java version from '11.0.8'
+```
+
+大致意思是说：“无法从‘11.0.8’确定使用哪个java版本”。
+
+该问题的核心原因是：Gradle和JDK的版本不兼容。因为`AS4.2`编译用的JDK默认是自带的`open JDK11`，并且有时候编译转换jar到dex时也会失败。
+
+真是坑爹啊！再次说明一个道理：IDE没问题就不要瞎升级！
+
+### 解决方案
+
+**这里我采用的方案是：保持项目Gradle版本不变，降低JDK版本。**
+
+当我把两个版本保持一致时，还是报这个错误！！！
+
+这时需要删除AndroidStudio根目录下的jre文件夹，然后这个问题就解决了。。。
+
+> 参考链接：
+> 
+> [Gradle-Could not determine java version from ‘11‘](https://blog.csdn.net/qq_32452623/article/details/83341750)
